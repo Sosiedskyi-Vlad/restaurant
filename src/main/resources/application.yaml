@@ -5,6 +5,7 @@ spring:
     password: # залишаємо порожнім, оскільки в тебе локальний користувач macOS
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false # БД-запити лише в сервісах (@Transactional), а не під час рендеру відповіді
     hibernate:
       ddl-auto: update # Spring сам створить таблиці в базі на основі твоїх Entity
     show-sql: true # Виводить SQL-запити в консоль (дуже корисно для відлагодження)
@@ -18,3 +19,6 @@ app:
     secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     staff-expiration-ms: 86400000   # 24 години
     guest-expiration-ms: 14400000   # 4 години
+  websocket:
+    # Дозволені origin-и для WebSocket (через кому). У проді вкажіть домен фронтенду
+    allowed-origins: ${WS_ALLOWED_ORIGINS:*}
