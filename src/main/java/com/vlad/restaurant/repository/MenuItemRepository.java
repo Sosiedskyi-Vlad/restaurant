@@ -8,6 +8,6 @@ import java.util.List;
 
 @Repository
 public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
-    // Цей метод Spring реалізує сам. Він дістане всі страви, які є в наявності.
-    List<MenuItem> findAllByIsAvailableTrue();
+    // Страви, які не видалені (active) і є в наявності (available)
+    List<MenuItem> findAllByAvailableTrueAndActiveTrue();
 }

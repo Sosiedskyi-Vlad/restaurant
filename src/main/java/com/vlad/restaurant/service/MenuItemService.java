@@ -13,9 +13,9 @@ public class MenuItemService {
 
     private final MenuItemRepository repository;
 
-    // Отримати всі страви
+    // Отримати всі активні страви, які є в наявності
     public List<MenuItem> getAllAvailableMenu() {
-        return repository.findAllByIsAvailableTrue();
+        return repository.findAllByAvailableTrueAndActiveTrue();
     }
 
     // Створити нову страву

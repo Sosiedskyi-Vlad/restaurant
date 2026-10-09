@@ -1,31 +1,33 @@
 package com.vlad.restaurant.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
 @Table(name = "order_items")
-@Data
+@Getter
+@Setter
 public class OrderItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    // Багато позицій належать одному замовленню
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id")
     private Order order;
 
-    // Посилання на страву з меню
-    @ManyToOne
+    @ManyToOne(optional = false)
     @JoinColumn(name = "menu_item_id")
     private MenuItem menuItem;
 
     private Integer quantity;
 
-    @Column(name = "price_at_time")
-    private BigDecimal priceAtTime; // Фіксуємо ціну, щоб старі чеки не мінялися, якщо завтра ціна в меню зросте
+    // Фіксуємо ціну, щоб старі чеки не змінювались, якщо завтра ціна в меню зросте
+    @Column(name = "price_at_time", precision = 10, scale = 2)
+    private BigDecimal priceAtTime;
 }

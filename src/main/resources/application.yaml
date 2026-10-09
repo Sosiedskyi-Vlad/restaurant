@@ -6,8 +6,15 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update # Магія Spring: він сам створить таблиці в базі на основі твоїх Entity
+      ddl-auto: update # Spring сам створить таблиці в базі на основі твоїх Entity
     show-sql: true # Виводить SQL-запити в консоль (дуже корисно для відлагодження)
     properties:
       hibernate:
         format_sql: true # Робить SQL у консолі красивим і читабельним
+
+app:
+  jwt:
+    # Base64-секрет для підпису JWT. У проді задається змінною оточення JWT_SECRET
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    staff-expiration-ms: 86400000   # 24 години
+    guest-expiration-ms: 14400000   # 4 години

@@ -14,6 +14,7 @@ public class Category {
 
     private String name; // Наприклад: "Напої", "Десерти"
 
+    // М'яке видалення
     @Column(name = "is_active")
-    private boolean isActive = true;
+    private boolean active = true;
 }

@@ -1,16 +1,23 @@
 package com.vlad.restaurant.dto;
 
-import java.util.List;
-import java.util.UUID;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 
-// Record автоматично генерує конструктори та геттери. Це сучасний стандарт Java.
+import java.util.List;
+
+// tableId тут немає навмисно: бекенд бере його з JWT-токена гостя (захист від підміни столу)
 public record OrderCreateRequest(
-        Integer tableNumber, // Номер стола, з якого роблять замовлення
-        List<OrderItemRequest> items // Список страв
+        @NotEmpty(message = "Замовлення не може бути порожнім")
+        List<@Valid OrderItemRequest> items
 ) {
-    // Вкладений record для конкретної позиції (яка страва і скільки штук)
     public record OrderItemRequest(
+            @NotNull(message = "menuItemId обов'язковий")
             Long menuItemId,
+
+            @NotNull(message = "quantity обов'язкове")
+            @Min(value = 1, message = "Кількість має бути не менше 1")
             Integer quantity
     ) {}
 }

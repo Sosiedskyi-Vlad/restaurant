@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -12,59 +13,80 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
 public class JwtService {
 
-    // Це наш секретний ключ для підпису токенів (256-bit).
-    // У реальних проєктах він лежить у application.yml, але для диплома залишимо
-    // тут для зручності.
-    private static final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+    public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_TABLE_ID = "tableId";
+    public static final String ROLE_GUEST = "ROLE_GUEST";
 
-    // Метод дістає логін (email) з токена
+    // Секрет береться з application.yaml (app.jwt.secret) / змінної оточення JWT_SECRET
+    @Value("${app.jwt.secret}")
+    private String secretKey;
+
+    @Value("${app.jwt.staff-expiration-ms:86400000}")
+    private long staffExpirationMs;
+
+    @Value("${app.jwt.guest-expiration-ms:14400000}")
+    private long guestExpirationMs;
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // Універсальний метод для витягування будь-яких даних (claims)
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+    public String extractRole(String token) {
+        return extractClaim(token, c -> c.get(CLAIM_ROLE, String.class));
     }
 
-    // Генерація токена лише за UserDetails (без додаткових даних)
+    public UUID extractTableId(String token) {
+        return UUID.fromString(extractClaim(token, c -> c.get(CLAIM_TABLE_ID, String.class)));
+    }
+
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        return claimsResolver.apply(extractAllClaims(token));
+    }
+
+    // Токен персоналу
     public String generateToken(UserDetails userDetails) {
         return generateToken(new HashMap<>(), userDetails);
     }
 
-    // Генерація токена з додатковими даними (наприклад, можемо зашити туди номер
-    // стола)
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        return buildToken(extraClaims, userDetails.getUsername(), staffExpirationMs);
+    }
+
+    // Токен гостя: роль GUEST і tableId зашиті всередині, тож бекенд завжди знає стіл
+    public String generateGuestToken(UUID tableId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(CLAIM_ROLE, ROLE_GUEST);
+        claims.put(CLAIM_TABLE_ID, tableId.toString());
+        return buildToken(claims, "table:" + tableId, guestExpirationMs);
+    }
+
+    private String buildToken(Map<String, Object> claims, String subject, long expirationMs) {
+        long now = System.currentTimeMillis();
         return Jwts.builder()
-                .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // Токен діє рівно 24 години
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + expirationMs))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // Перевірка, чи токен належить цьому користувачу і чи не закінчився його час
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
     private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        return extractClaim(token, Claims::getExpiration).before(new Date());
     }
 
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    // Метод, який безпосередньо розшифровує токен
+    // Перевіряє підпис і термін дії; кидає JwtException, якщо токен недійсний
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -73,9 +95,7 @@ public class JwtService {
                 .getBody();
     }
 
-    // Конвертація нашого текстового секретного ключа у криптографічний об'єкт
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
-        return Keys.hmacShaKeyFor(keyBytes);
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
     }
 }
