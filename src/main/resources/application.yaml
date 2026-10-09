@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:54321/restaurant_db
+    username: vlad
+    password: # залишаємо порожнім, оскільки в тебе локальний користувач macOS
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update # Магія Spring: він сам створить таблиці в базі на основі твоїх Entity
+    show-sql: true # Виводить SQL-запити в консоль (дуже корисно для відлагодження)
+    properties:
+      hibernate:
+        format_sql: true # Робить SQL у консолі красивим і читабельним
