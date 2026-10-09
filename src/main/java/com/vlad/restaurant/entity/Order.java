@@ -34,6 +34,21 @@ public class Order {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    // Часові мітки життєвого циклу - основа аналітики (час приготування, виручка за період)
+    @Column(name = "preparing_at")
+    private LocalDateTime preparingAt;
+
+    @Column(name = "ready_at")
+    private LocalDateTime readyAt;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    // Чи оплачене замовлення (онлайн або готівкою). Не залежить від статусу готовності:
+    // гість може оплатити наперед, поки замовлення ще готується.
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean paid = false;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 }

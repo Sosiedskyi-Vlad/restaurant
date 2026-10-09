@@ -30,7 +30,9 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/ws/**").permitAll() // handshake відкритий; JWT перевіряється на STOMP CONNECT
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payments/liqpay/callback").permitAll() // підпис перевіряє сервіс
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll() // handshake відкритий; JWT перевіряється на STOMP CONNECT
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Решта: потрібен валідний токен, ролі перевіряються через @PreAuthorize
                         .anyRequest().authenticated())

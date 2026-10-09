@@ -1,4 +1,7 @@
 spring:
+  config:
+    # Локальні секрети (ключі LiqPay тощо) з файлу поруч з pom.xml; файлу може не бути
+    import: optional:file:./.env.properties
   datasource:
     url: jdbc:postgresql://localhost:54321/restaurant_db
     username: vlad
@@ -7,7 +10,7 @@ spring:
   jpa:
     open-in-view: false # БД-запити лише в сервісах (@Transactional), а не під час рендеру відповіді
     hibernate:
-      ddl-auto: update # Spring сам створить таблиці в базі на основі твоїх Entity
+      ddl-auto: validate # Spring сам створить таблиці в базі на основі твоїх Entity
     show-sql: true # Виводить SQL-запити в консоль (дуже корисно для відлагодження)
     properties:
       hibernate:
@@ -22,3 +25,25 @@ app:
   websocket:
     # Дозволені origin-и для WebSocket (через кому). У проді вкажіть домен фронтенду
     allowed-origins: ${WS_ALLOWED_ORIGINS:*}
+  qr:
+    # Адреса гостьового фронтенду, яка кодується в QR (задається змінною оточення)
+    base-url: ${FRONTEND_URL:http://localhost:5173}
+  liqpay:
+    # Ключі з кабінету LiqPay (sandbox-ключі починаються з "sandbox_"). Без них оплата недоступна.
+    public-key: ${LIQPAY_PUBLIC_KEY:}
+    private-key: ${LIQPAY_PRIVATE_KEY:}
+    sandbox: ${LIQPAY_SANDBOX:true}
+    currency: UAH
+    checkout-url: https://www.liqpay.ua/api/3/checkout
+    api-url: https://www.liqpay.ua/api/request
+    # Публічна адреса бекенду для server-to-server callback (локально - через ngrok). Необов'язково:
+    # без неї статус платежу підтягується кнопкою/викликом POST /payments/{id}/sync
+    server-callback-url: ${LIQPAY_CALLBACK_URL:}
+    # Куди LiqPay повертає гостя після оплати
+    result-url: ${FRONTEND_URL:http://localhost:5173}
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

@@ -23,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -141,9 +142,47 @@ public class OrderService {
         }
 
         order.setStatus(target);
+        LocalDateTime now = LocalDateTime.now();
+        switch (target) {
+            case PREPARING -> order.setPreparingAt(now);
+            case READY -> order.setReadyAt(now);
+            case PAID -> markPaid(order, now); // закриття офіціантом = розрахунок (готівка/термінал)
+            default -> { }
+        }
         OrderResponse response = OrderResponse.from(order);
-        eventPublisher.publishEvent(new OrderEvent(order.getTable().getId(),
+        UUID tId = order.getTable() != null ? order.getTable().getId() : null;
+        eventPublisher.publishEvent(new OrderEvent(tId,
                 new OrderEventMessage(OrderEventMessage.Type.ORDER_STATUS_CHANGED, current, response)));
         return response;
+    }
+
+    // Викликається після підтвердженої онлайн-оплати (див. PaymentService).
+    // Ідемпотентний: повторний callback від платіжного провайдера нічого не змінює.
+    @Transactional
+    public OrderResponse markPaidOnline(UUID orderId) {
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Замовлення не знайдено"));
+        if (order.isPaid()) {
+            return OrderResponse.from(order);
+        }
+        OrderStatus previous = order.getStatus();
+        markPaid(order, LocalDateTime.now());
+        // Якщо страву вже видали (READY), оплата закриває замовлення.
+        // Інакше воно продовжує звичайний шлях через кухню, але вже з позначкою "оплачено".
+        if (previous == OrderStatus.READY) {
+            order.setStatus(OrderStatus.PAID);
+        }
+        OrderResponse response = OrderResponse.from(order);
+        UUID tId = order.getTable() != null ? order.getTable().getId() : null;
+        eventPublisher.publishEvent(new OrderEvent(tId,
+                new OrderEventMessage(OrderEventMessage.Type.ORDER_PAID, previous, response)));
+        return response;
+    }
+
+    private void markPaid(Order order, LocalDateTime now) {
+        if (!order.isPaid()) {
+            order.setPaid(true);
+            order.setPaidAt(now);
+        }
     }
 }

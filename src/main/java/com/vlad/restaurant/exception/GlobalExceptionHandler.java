@@ -1,6 +1,7 @@
 package com.vlad.restaurant.exception;
 
 import com.vlad.restaurant.dto.ApiErrorResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiErrorResponse> build(HttpStatus status, String message) {
@@ -62,6 +64,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnavailable(ServiceUnavailableException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
+
     // Некоректний UUID у шляху або невідоме значення enum у параметрі (?status=XYZ)
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
@@ -98,6 +105,7 @@ public class GlobalExceptionHandler {
     // Усі інші непередбачені помилки (щоб приховати стек-трейс)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex) {
+        log.error("Необроблена помилка", ex); // клієнту стек не показуємо, але в лог він має потрапити
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Сталася непередбачувана помилка на сервері");
     }
 }
