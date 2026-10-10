@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
 import { getStompClient, onWsConnect } from '../ws';
-import { CheckIcon, XMarkIcon, BellIcon, BanknotesIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, XMarkIcon, BellIcon, BanknotesIcon, ClockIcon, MapIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 
 export default function WaiterBoard() {
     const [tables, setTables] = useState<any[]>([]);
     const [calls, setCalls] = useState<any[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
     const [selectedTable, setSelectedTable] = useState<any>(null);
+    const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
     
     const loadData = async () => {
         try {
@@ -75,35 +76,77 @@ export default function WaiterBoard() {
 
     return (
         <div className="p-8 max-w-5xl mx-auto">
-            <h1 className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">Карта залу</h1>
-            <div className="flex gap-4 mb-8 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl w-fit">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-400"></div>Вільний</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-400"></div>Є замовлення</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div>Рахунок</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div>Виклик</div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Виклики столів</h1>
+                
+                <div className="flex bg-slate-200 dark:bg-slate-700 p-1 rounded-xl">
+                    <button onClick={() => setViewMode('map')} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${viewMode === 'map' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>
+                        <MapIcon className="w-5 h-5"/> Карта залу
+                    </button>
+                    <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}>
+                        <ListBulletIcon className="w-5 h-5"/> Список
+                    </button>
+                </div>
             </div>
 
-            {tables.length === 0 ? (
+            {viewMode === 'map' ? (
+                <>
+                    <div className="flex gap-4 mb-8 text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl w-fit">
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-400"></div>Вільний</div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-400"></div>Є замовлення</div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div>Рахунок</div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div>Виклик</div>
+                    </div>
+
+                    {tables.length === 0 ? (
                 <div className="text-slate-500">Немає доданих столів. Адміністратор має створити їх.</div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                    {tables.map(t => {
+                <div className="relative w-full aspect-[4/3] md:aspect-[16/9] bg-slate-100 dark:bg-slate-900 rounded-3xl overflow-hidden border-4 border-slate-200 dark:border-slate-800 shadow-inner">
+                    {tables.map((t, i) => {
                         const status = getTableStatus(t.number);
+                        // Якщо координати не задані адміном, розташовуємо плиткою
+                        const posX = t.positionX ?? (10 + (i % 8) * 10);
+                        const posY = t.positionY ?? (10 + Math.floor(i / 8) * 15);
+                        
                         return (
                             <button 
                                 key={t.id}
                                 onClick={() => setSelectedTable(t)}
-                                className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all transform hover:scale-105 active:scale-95 border-2 ${getStatusClasses(status)}`}
+                                className={`absolute w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center shadow-lg transition-all transform hover:scale-110 active:scale-95 border-2 ${getStatusClasses(status)}`}
+                                style={{ 
+                                    left: `${posX}%`, 
+                                    top: `${posY}%`,
+                                    transform: 'translate(-50%, -50%)',
+                                }}
                             >
-                                <span className="text-4xl font-black mb-1 opacity-90">{t.number}</span>
-                                <span className="text-xs font-bold uppercase tracking-widest opacity-75">Стіл</span>
+                                <span className="text-2xl sm:text-3xl font-black opacity-90">{t.number}</span>
                                 
-                                {status === 'red' && <BellIcon className="absolute top-2 right-2 w-6 h-6 opacity-80" />}
-                                {status === 'blue' && <BanknotesIcon className="absolute top-2 right-2 w-6 h-6 opacity-80" />}
-                                {status === 'yellow' && <ClockIcon className="absolute top-2 right-2 w-6 h-6 opacity-80" />}
+                                {status === 'red' && <BellIcon className="absolute -top-3 -right-3 w-8 h-8 bg-white dark:bg-slate-800 rounded-full p-1 text-red-500 shadow-md animate-bounce" />}
+                                {status === 'blue' && <BanknotesIcon className="absolute -top-3 -right-3 w-8 h-8 bg-white dark:bg-slate-800 rounded-full p-1 text-blue-500 shadow-md" />}
+                                {status === 'yellow' && <ClockIcon className="absolute -top-3 -right-3 w-8 h-8 bg-white dark:bg-slate-800 rounded-full p-1 text-amber-500 shadow-md" />}
                             </button>
                         );
                     })}
+                </div>
+            )}
+            </>
+            ) : (
+                <div className="space-y-4 max-w-3xl">
+                    {calls.length === 0 && <div className="text-slate-500 font-medium bg-slate-100 dark:bg-slate-800 p-6 rounded-2xl">Немає активних викликів.</div>}
+                    {calls.map((c:any) => (
+                        <div key={c.id} className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center transition-colors">
+                            <div>
+                                <div className="font-bold text-2xl mb-1 text-indigo-900 dark:text-indigo-400 tracking-tight">Стіл {c.tableNumber}</div>
+                                <div className="text-slate-700 dark:text-slate-300 font-medium text-lg flex items-center gap-3">
+                                    {c.type === 'WAITER' ? '👋 Просить підійти' : '💳 Просить рахунок'} 
+                                    <span className="text-sm text-slate-400 dark:text-slate-500 font-normal">{new Date(c.createdAt).toLocaleTimeString()}</span>
+                                </div>
+                            </div>
+                            <button onClick={() => resolveCall(c.id)} className="bg-emerald-500 text-white px-8 py-4 rounded-xl font-bold hover:bg-emerald-600 active:scale-95 transition-all shadow-md flex items-center gap-2">
+                                <CheckIcon className="w-5 h-5"/> Оброблено
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
 

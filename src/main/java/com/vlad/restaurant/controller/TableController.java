@@ -2,6 +2,7 @@ package com.vlad.restaurant.controller;
 
 import com.vlad.restaurant.dto.TableCreateRequest;
 import com.vlad.restaurant.dto.TableResponse;
+import com.vlad.restaurant.dto.TablePositionUpdateRequest;
 import com.vlad.restaurant.service.TableService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,5 +54,12 @@ public class TableController {
                 .cacheControl(CacheControl.noStore()) // після regenerate-qr старе зображення недійсне
                 .contentType(MediaType.IMAGE_PNG)
                 .body(tableService.generateQrPng(id, safeSize));
+    }
+
+    @PatchMapping("/positions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
+    public void updatePositions(@Valid @RequestBody List<TablePositionUpdateRequest> requests) {
+        tableService.updatePositions(requests);
     }
 }

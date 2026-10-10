@@ -2,6 +2,7 @@ package com.vlad.restaurant.service;
 
 import com.vlad.restaurant.dto.TableCreateRequest;
 import com.vlad.restaurant.dto.TableResponse;
+import com.vlad.restaurant.dto.TablePositionUpdateRequest;
 import com.vlad.restaurant.entity.RestaurantTable;
 import com.vlad.restaurant.exception.BadRequestException;
 import com.vlad.restaurant.exception.ResourceNotFoundException;
@@ -89,6 +90,16 @@ public class TableService {
             return out.toByteArray();
         } catch (WriterException | IOException e) {
             throw new IllegalStateException("Не вдалося згенерувати QR-код", e);
+        }
+    }
+
+    @Transactional
+    public void updatePositions(List<TablePositionUpdateRequest> requests) {
+        for (TablePositionUpdateRequest req : requests) {
+            repository.findById(req.id()).ifPresent(t -> {
+                t.setPositionX(req.positionX());
+                t.setPositionY(req.positionY());
+            });
         }
     }
 }
