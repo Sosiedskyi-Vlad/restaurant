@@ -92,6 +92,12 @@ public class MenuController {
         menuService.likeItem(id);
     }
 
+    @DeleteMapping("/items/{id}/like")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unlikeItem(@PathVariable Long id) {
+        menuService.unlikeItem(id);
+    }
+
     @PostMapping(value = "/items/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public MenuItemResponse uploadImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {

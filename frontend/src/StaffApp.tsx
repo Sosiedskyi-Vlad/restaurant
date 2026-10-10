@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from './api';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import KitchenBoard from './pages/KitchenBoard';
 import WaiterBoard from './pages/WaiterBoard';
@@ -13,17 +14,47 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
     const navigate = useNavigate();
     const location = useLocation();
     
+    const [newOrders, setNewOrders] = useState(0);
+    const [openCalls, setOpenCalls] = useState(0);
+
+    useEffect(() => {
+        const fetchBadges = () => {
+            api.get('/orders/active').then(res => {
+                setNewOrders(res.data.filter((o:any) => o.status === 'NEW').length);
+            }).catch(()=>{});
+            
+            api.get('/service-calls/active').then(res => {
+                setOpenCalls(res.data.length);
+            }).catch(()=>{});
+        };
+
+        fetchBadges();
+        const interval = setInterval(fetchBadges, 5000);
+        window.addEventListener('refresh-badges', fetchBadges);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('refresh-badges', fetchBadges);
+        };
+    }, [location.pathname]);
+
     const logout = () => {
         localStorage.removeItem('staff_token');
         setRole(null);
         navigate('/login');
     };
 
-    const LinkItem = ({ to, icon, label }: any) => {
+    const LinkItem = ({ to, icon, label, badge = 0, badgeColor = 'bg-red-500' }: any) => {
         const active = location.pathname.startsWith(to);
         return (
-            <Link to={to} className={`flex items-center gap-3 p-3 rounded-xl transition-colors font-medium ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-                {icon} {label}
+            <Link to={to} className={`flex items-center justify-between p-3 rounded-xl transition-colors font-medium ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                <div className="flex items-center gap-3">
+                    {icon} {label}
+                </div>
+                {badge > 0 && (
+                    <span className={`${badgeColor} text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse`}>
+                        {badge}
+                    </span>
+                )}
             </Link>
         );
     };
@@ -40,10 +71,10 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
                 <div className="flex-1 p-4 space-y-1 overflow-y-auto">
                     <div className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-4 mt-2 px-3">Робочі зони</div>
                     {(role === 'ROLE_COOK' || role === 'ROLE_ADMIN' || role === 'ROLE_WAITER') && (
-                        <LinkItem to="/staff/kitchen" icon={<Squares2X2Icon className="w-5 h-5"/>} label="Дошка замовлень" />
+                        <LinkItem to="/staff/kitchen" icon={<Squares2X2Icon className="w-5 h-5"/>} label="Дошка замовлень" badge={newOrders} badgeColor="bg-blue-500" />
                     )}
                     {(role === 'ROLE_WAITER' || role === 'ROLE_ADMIN') && (
-                        <LinkItem to="/staff/waiter" icon={<UsersIcon className="w-5 h-5"/>} label="Виклики столів" />
+                        <LinkItem to="/staff/waiter" icon={<UsersIcon className="w-5 h-5"/>} label="Виклики столів" badge={openCalls} badgeColor="bg-amber-500" />
                     )}
                     
                     {role === 'ROLE_ADMIN' && (

@@ -39,7 +39,15 @@ public class ServiceCallController {
         return service.getOpenForTable(guest.tableId());
     }
 
+
+    @DeleteMapping("/my")
+    @PreAuthorize("hasRole('GUEST')")
+    public void cancelMyCalls(@AuthenticationPrincipal GuestPrincipal guest) {
+        service.cancelMyCalls(guest.tableId());
+    }
+
     // ---------- Персонал ----------
+
 
     @GetMapping("/active")
     @PreAuthorize("hasAnyRole('WAITER', 'ADMIN')")

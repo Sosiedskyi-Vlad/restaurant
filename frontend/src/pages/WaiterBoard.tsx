@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
-import { getStompClient } from '../ws';
+import { getStompClient, onWsConnect } from '../ws';
 import { CheckIcon } from '@heroicons/react/24/solid';
 
 export default function WaiterBoard() {
@@ -12,13 +12,14 @@ export default function WaiterBoard() {
         load();
         const client = getStompClient();
         if (!client) return;
-        const sub = client.onConnect = () => client.subscribe('/topic/service-calls', () => load());
-        return () => { if (client.connected) client.unsubscribe('/topic/service-calls'); };
+        const unsubConnect = onWsConnect(() => client.subscribe('/topic/service-calls', () => load()));
+        return () => { unsubConnect(); if (client.connected) client.unsubscribe('/topic/service-calls'); };
     }, []);
 
     const resolve = async (id: string) => {
         await api.patch(`/service-calls/${id}/resolve`);
         load();
+        window.dispatchEvent(new Event('refresh-badges'));
     };
 
     return (

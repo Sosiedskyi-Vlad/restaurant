@@ -76,4 +76,16 @@ public class ServiceCallService {
                 new ServiceCallEventMessage(ServiceCallEventMessage.Type.CALL_RESOLVED, response)));
         return response;
     }
+
+    @Transactional
+    public void cancelMyCalls(UUID tableId) {
+        List<ServiceCall> open = callRepository.findAllByTableIdAndStatusOrderByCreatedAtAsc(tableId, ServiceCallStatus.OPEN);
+        for (ServiceCall call : open) {
+            call.setStatus(ServiceCallStatus.RESOLVED);
+            call.setResolvedAt(LocalDateTime.now());
+            ServiceCallResponse response = ServiceCallResponse.from(call);
+            eventPublisher.publishEvent(new ServiceCallEvent(tableId,
+                    new ServiceCallEventMessage(ServiceCallEventMessage.Type.CALL_RESOLVED, response)));
+        }
+    }
 }

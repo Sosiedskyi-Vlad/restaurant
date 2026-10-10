@@ -105,6 +105,13 @@ public class MenuService {
         item.setFavoritesCount(item.getFavoritesCount() + 1);
     }
 
+    @Transactional
+    public void unlikeItem(Long id) {
+        MenuItem item = findActiveItem(id);
+        int current = item.getFavoritesCount() == null ? 0 : item.getFavoritesCount();
+        item.setFavoritesCount(Math.max(0, current - 1));
+    }
+
     // ---------- Допоміжні ----------
 
     private void apply(MenuItem item, MenuItemRequest request) {

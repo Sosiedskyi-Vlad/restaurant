@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
-import { getStompClient } from '../ws';
+import { getStompClient, onWsConnect } from '../ws';
 import { CheckCircleIcon, PlayIcon, FireIcon } from '@heroicons/react/24/solid';
 
 export default function KitchenBoard({ role }: { role: string }) {
@@ -11,14 +11,15 @@ export default function KitchenBoard({ role }: { role: string }) {
         fetchActive();
         const client = getStompClient();
         if (!client) return;
-        client.onConnect = () => client.subscribe('/topic/kitchen', () => fetchActive());
-        return () => { if (client.connected) client.unsubscribe('/topic/kitchen'); };
+        const unsubConnect = onWsConnect(() => client.subscribe('/topic/kitchen', () => fetchActive()));
+        return () => { unsubConnect(); if (client.connected) client.unsubscribe('/topic/kitchen'); };
     }, []);
 
     const updateStatus = async (id: string, target: string) => {
         try {
             await api.patch(`/orders/${id}/status`, { status: target });
             fetchActive();
+            window.dispatchEvent(new Event('refresh-badges'));
         } catch (e: any) { alert(e.response?.data?.message || 'Помилка'); }
     };
 

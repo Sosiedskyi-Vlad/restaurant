@@ -1,6 +1,7 @@
 import { Client } from '@stomp/stompjs';
 
 let client: Client | null = null;
+let connectCallbacks: Array<() => void> = [];
 
 export const getStompClient = () => {
     if (client && client.active) return client;
@@ -19,13 +20,29 @@ export const getStompClient = () => {
         heartbeatIncoming: 10000,
         heartbeatOutgoing: 10000,
     });
+    
+    client.onConnect = () => {
+        connectCallbacks.forEach(cb => cb());
+    };
+    
     client.activate();
     return client;
+};
+
+export const onWsConnect = (cb: () => void) => {
+    if (client && client.connected) {
+        cb();
+    }
+    connectCallbacks.push(cb);
+    return () => {
+        connectCallbacks = connectCallbacks.filter(c => c !== cb);
+    };
 };
 
 export const disconnectWs = () => {
     if (client) {
         client.deactivate();
         client = null;
+        connectCallbacks = [];
     }
 };

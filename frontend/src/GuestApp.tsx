@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from './api';
-import { getStompClient } from './ws';
+import { getStompClient, onWsConnect } from './ws';
 import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
@@ -27,30 +28,64 @@ export default function GuestApp() {
 
 function CallWaiterButton() {
     const [calling, setCalling] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+
     useEffect(() => {
         api.get('/service-calls/my').then(res => setCalling(res.data.length > 0));
         const client = getStompClient();
         if (!client) return;
-        const sub = client.onConnect = () => {
+        const unsubConnect = onWsConnect(() => {
             client.subscribe('/user/queue/service-calls', (m) => {
                 const body = JSON.parse(m.body);
                 if (body.type === 'CALL_CREATED') setCalling(true);
                 if (body.type === 'CALL_RESOLVED') setCalling(false);
             });
-        };
-        return () => { if (client.connected) client.unsubscribe('/user/queue/service-calls'); };
+        });
+        return () => { unsubConnect(); if (client.connected) client.unsubscribe('/user/queue/service-calls'); };
     }, []);
 
     const call = () => {
-        if (calling) return;
-        api.post('/service-calls', { type: 'WAITER' }).catch(() => alert('Помилка'));
+        if (calling) {
+            // Скасування виклику
+            setCalling(false);
+            api.delete('/service-calls/my').catch(() => setCalling(true));
+            return;
+        }
+        
+        // Оптимістичний UI: одразу показуємо анімацію та тост
+        setCalling(true);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 4000);
+        
+        api.post('/service-calls', { type: 'WAITER' })
+           .catch(() => {
+               setCalling(false);
+               setShowToast(false);
+               alert('Помилка при виклику офіціанта');
+           });
     };
 
     return (
-        <button onClick={call} className={`relative p-3 rounded-full transition-all duration-300 shadow-sm ${calling ? 'bg-amber-100 text-amber-600 scale-105 ring-4 ring-amber-100/50' : 'bg-white text-slate-600 hover:bg-slate-100 hover:scale-105 ring-1 ring-slate-200'}`} title="Покликати офіціанта">
-            <BellIcon className={`w-6 h-6 ${calling ? 'animate-[wiggle_1s_ease-in-out_infinite]' : ''}`} />
-            {calling && <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>}
-        </button>
+        <>
+            <button onClick={call} className={`relative p-3 rounded-full transition-all duration-500 shadow-sm ${calling ? 'bg-amber-500 text-white scale-110 shadow-amber-500/40 ring-4 ring-amber-500/20' : 'bg-white text-slate-600 hover:bg-slate-100 hover:scale-105 ring-1 ring-slate-200'}`} title="Покликати офіціанта">
+                <BellIcon className={`w-6 h-6 ${calling ? 'animate-wiggle' : ''}`} />
+                {calling && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full animate-ping"></span>}
+                {calling && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full"></span>}
+            </button>
+            
+            {showToast && createPortal(
+                <div className="fixed bottom-10 inset-x-0 mx-auto z-[100] flex justify-center px-6 pointer-events-none animate-slideUpFade w-full max-w-md">
+                    <div className="bg-emerald-500 text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-3 w-full border border-emerald-400">
+                        <CheckCircleIcon className="w-8 h-8 text-emerald-100 shrink-0" />
+                        <div>
+                            <div className="font-bold text-lg leading-tight">Офіціант вже в дорозі!</div>
+                            <div className="text-emerald-50 text-sm font-medium mt-0.5">Будь ласка, зачекайте хвилиночку</div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
     );
 }
 
@@ -63,27 +98,29 @@ function GuestFlow() {
         fetchOrders();
         const client = getStompClient();
         if (!client) return;
-        client.onConnect = () => client.subscribe('/user/queue/order-updates', () => fetchOrders());
+        const unsubConnect = onWsConnect(() => client.subscribe('/user/queue/order-updates', () => fetchOrders()));
+        return () => { unsubConnect(); if (client.connected) client.unsubscribe('/user/queue/order-updates'); };
     }, []);
 
     const sendOrder = async () => {
-        const items = Object.entries(cart).map(([id, q]) => ({ menuItemId: parseInt(id), quantity: q }));
-        if (!items.length) return;
+        const payloadItems = Object.entries(cart).map(([id, q]) => ({ menuItemId: parseInt(id), quantity: q }));
+        if (!payloadItems.length) return;
         try {
-            await api.post('/orders', { items });
+            await api.post('/orders', { items: payloadItems });
             setCart({});
             fetchOrders();
-        } catch (e: any) { alert(e.response?.data?.message || 'Помилка'); }
+        } catch(e:any) { alert(e.response?.data?.message || 'Помилка замовлення'); }
     };
 
-    const count = Object.values(cart).reduce((a,b)=>a+b, 0);
+    const count = Object.values(cart).reduce((a, b) => a + b, 0);
 
     return (
-        <div className="space-y-10">
+        <div className="space-y-8 relative">
             {orders.length > 0 && <ActiveOrders orders={orders} />}
             <Menu cart={cart} setCart={setCart} />
+            
             {count > 0 && (
-                <div className="fixed bottom-6 left-4 right-4 sm:absolute sm:bottom-6 sm:left-6 sm:right-6 z-40 transition-all duration-500 animate-[slideUp_0.3s_ease-out]">
+                <div className="fixed bottom-6 left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
                     <button onClick={sendOrder} className="w-full glass-dark text-white p-4 rounded-3xl font-bold flex justify-between items-center hover:scale-[1.02] active:scale-95 transition-transform">
                         <div className="flex items-center gap-3">
                             <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
@@ -156,7 +193,6 @@ function ActiveOrders({ orders }: { orders: any[] }) {
     );
 }
 
-
 function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any }) {
     const [items, setItems] = useState<any[]>([]);
     const [activeCategory, setActiveCategory] = useState<string>('');
@@ -182,16 +218,23 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
 
     const handleLike = (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
-        if (likedItems.has(id)) return; // Вже лайкнуто
+        const isLiked = likedItems.has(id);
         
-        api.post(`/menu/items/${id}/like`).catch(()=>{}); // відправляємо на бекенд не чекаючи
-        
-        const newSet = new Set(likedItems);
-        newSet.add(id);
-        setLikedItems(newSet);
-        localStorage.setItem('liked_items', JSON.stringify(Array.from(newSet)));
-        
-        setItems(prev => prev.map(i => i.id === id ? {...i, favoritesCount: (i.favoritesCount || 0) + 1} : i));
+        if (isLiked) {
+            api.delete(`/menu/items/${id}/like`).catch(()=>{});
+            const newSet = new Set(likedItems);
+            newSet.delete(id);
+            setLikedItems(newSet);
+            localStorage.setItem('liked_items', JSON.stringify(Array.from(newSet)));
+            setItems(prev => prev.map(i => i.id === id ? {...i, favoritesCount: Math.max(0, (i.favoritesCount || 0) - 1)} : i));
+        } else {
+            api.post(`/menu/items/${id}/like`).catch(()=>{});
+            const newSet = new Set(likedItems);
+            newSet.add(id);
+            setLikedItems(newSet);
+            localStorage.setItem('liked_items', JSON.stringify(Array.from(newSet)));
+            setItems(prev => prev.map(i => i.id === id ? {...i, favoritesCount: (i.favoritesCount || 0) + 1} : i));
+        }
     };
 
     const categories = Array.from(new Set(items.filter(i => i.isAvailable).map(i => i.categoryName)));
@@ -200,7 +243,7 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
     return (
         <div className="space-y-6">
             {/* Горизонтальний список категорій */}
-            <div className="flex gap-3 overflow-x-auto pb-4 pt-2 -mx-6 px-6 no-scrollbar snap-x">
+            <div className="flex gap-3 overflow-x-auto pb-4 pt-2 -mx-6 px-6 scroll-pl-6 no-scrollbar snap-x after:content-[''] after:w-1 after:shrink-0">
                 {categories.map((cat: any) => (
                     <button 
                         key={cat} 
@@ -213,8 +256,8 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
             </div>
 
             {/* Модалка з інформацією про продукт */}
-            {selectedItem && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-0" onClick={() => setSelectedItem(null)}>
+            {selectedItem && createPortal(
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-0 animate-slideUpFade" onClick={() => setSelectedItem(null)}>
                     <div className="bg-white w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
                         {selectedItem.imageUrl && <img src={selectedItem.imageUrl} className="w-full aspect-[4/3] object-cover" />}
                         <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md">✕</button>
@@ -253,7 +296,8 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Сітка товарів */}
@@ -263,9 +307,10 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
                         {/* Кнопка лайку */}
                         <button 
                             onClick={(e) => handleLike(e, i.id)} 
-                            className="absolute top-2 right-2 z-10 w-9 h-9 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm"
+                            className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-sm text-xs font-bold text-slate-600 transition-transform active:scale-90"
                         >
-                            {likedItems.has(i.id) ? <HeartIcon className="w-5 h-5 text-pink-500" /> : <HeartIconOutline className="w-5 h-5 text-slate-400 hover:text-pink-500" />}
+                            {likedItems.has(i.id) ? <HeartIcon className="w-4 h-4 text-pink-500" /> : <HeartIconOutline className="w-4 h-4 text-slate-400" />}
+                            <span className={likedItems.has(i.id) ? "text-pink-600" : "text-slate-500"}>{i.favoritesCount || 0}</span>
                         </button>
                         
                         <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 relative" onClick={() => setSelectedItem(i)}>
