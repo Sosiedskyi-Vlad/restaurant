@@ -19,6 +19,9 @@ import java.util.UUID;
 
 import java.math.RoundingMode;
 import java.util.List;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class MenuService {
 
     // ---------- Категорії ----------
 
+    @Cacheable("categories")
     @Transactional(readOnly = true)
     public List<CategoryResponse> getActiveCategories() {
         return categoryRepository.findAllByActiveTrueOrderByIdAsc().stream()
@@ -36,6 +40,7 @@ public class MenuService {
                 .toList();
     }
 
+    @CacheEvict(value = "categories", allEntries = true)
     @Transactional
     public CategoryResponse createCategory(CategoryRequest request) {
         Category category = new Category();
@@ -43,6 +48,10 @@ public class MenuService {
         return CategoryResponse.from(categoryRepository.save(category));
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "categories", allEntries = true),
+        @CacheEvict(value = "menuItems", allEntries = true)
+    })
     @Transactional
     public CategoryResponse updateCategory(Integer id, CategoryRequest request) {
         Category category = findActiveCategory(id);
@@ -51,6 +60,10 @@ public class MenuService {
     }
 
     // М'яке видалення. Страви категорії зникають з меню, бо фільтруються за category.active
+    @Caching(evict = {
+        @CacheEvict(value = "categories", allEntries = true),
+        @CacheEvict(value = "menuItems", allEntries = true)
+    })
     @Transactional
     public void deleteCategory(Integer id) {
         findActiveCategory(id).setActive(false);
@@ -58,6 +71,7 @@ public class MenuService {
 
     // ---------- Страви ----------
 
+    @Cacheable(value = "menuItems", key = "#categoryId != null ? #categoryId : 'ALL'")
     @Transactional(readOnly = true)
     public List<MenuItemResponse> getItems(Integer categoryId) {
         List<MenuItem> items = categoryId == null
@@ -71,6 +85,7 @@ public class MenuService {
         return MenuItemResponse.from(findActiveItem(id));
     }
 
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public MenuItemResponse createItem(MenuItemRequest request) {
         MenuItem item = new MenuItem();
@@ -78,6 +93,7 @@ public class MenuService {
         return MenuItemResponse.from(itemRepository.save(item));
     }
 
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public MenuItemResponse updateItem(Long id, MenuItemRequest request) {
         MenuItem item = findActiveItem(id);
@@ -86,6 +102,7 @@ public class MenuService {
     }
 
     // Швидке керування стоп-листом
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public MenuItemResponse setAvailability(Long id, boolean available) {
         MenuItem item = findActiveItem(id);
@@ -94,17 +111,20 @@ public class MenuService {
     }
 
     // М'яке видалення: рядок лишається в БД, бо на нього посилаються старі замовлення
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public void deleteItem(Long id) {
         findActiveItem(id).setActive(false);
     }
 
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public void likeItem(Long id) {
         MenuItem item = findActiveItem(id);
         item.setFavoritesCount(item.getFavoritesCount() + 1);
     }
 
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public void unlikeItem(Long id) {
         MenuItem item = findActiveItem(id);
@@ -120,6 +140,7 @@ public class MenuService {
         item.setImageUrl(request.imageUrl() == null || request.imageUrl().isBlank() ? null : request.imageUrl().trim());
         item.setIngredients(request.ingredients());
         item.setAllergens(request.allergens());
+        item.setVariations(request.variations());
         item.setCategory(findActiveCategory(request.categoryId()));
     }
 
@@ -133,6 +154,7 @@ public class MenuService {
                 .orElseThrow(() -> new ResourceNotFoundException("Страву з ID " + id + " не знайдено"));
     }
 
+    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public MenuItemResponse uploadImage(Long id, MultipartFile file) {
         MenuItem item = itemRepository.findById(id)

@@ -11,7 +11,8 @@ public record AnalyticsResponse(
         BigDecimal revenue,          // виручка: сума оплачених замовлень
         long paidOrders,             // кількість оплачених замовлень
         BigDecimal averageCheck,     // виручка / кількість оплачених замовлень
-        Double avgCookingMinutes,    // середній час NEW -> READY; null, якщо немає даних
+        Double avgCookingMinutes,
+        Double avgWaiterReactionMinutes,    // середній час NEW -> READY; null, якщо немає даних
         List<TopItem> topItems,
         List<DailyRevenue> revenueByDay
 ) {

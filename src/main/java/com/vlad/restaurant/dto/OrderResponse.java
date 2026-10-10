@@ -17,7 +17,8 @@ public record OrderResponse(
         BigDecimal total,
         boolean paid
 ) {
-    public record Item(Long menuItemId, String name, Integer quantity, BigDecimal priceAtTime) {}
+    public record Item(Long menuItemId, String name, Integer quantity, BigDecimal priceAtTime,
+            String selectedOptions) {}
 
     public static OrderResponse from(Order order) {
         List<Item> items = order.getItems().stream()
@@ -25,7 +26,8 @@ public record OrderResponse(
                         i.getMenuItem().getId(),
                         i.getMenuItem().getName(),
                         i.getQuantity(),
-                        i.getPriceAtTime()))
+                        i.getPriceAtTime(),
+                    i.getSelectedOptions()))
                 .toList();
         BigDecimal total = items.stream()
                 .map(i -> i.priceAtTime().multiply(BigDecimal.valueOf(i.quantity())))

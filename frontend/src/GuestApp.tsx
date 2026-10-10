@@ -2,12 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './api';
 import { getStompClient, onWsConnect } from './ws';
-import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
 
 export default function GuestApp() {
-    // Беремо гарний номер зі сховища, а не сирий UUID з токена
     const tableNum = localStorage.getItem('guest_table_num') || '?';
     
     return (
@@ -46,13 +45,11 @@ function CallWaiterButton() {
 
     const call = () => {
         if (calling) {
-            // Скасування виклику
             setCalling(false);
             api.delete('/service-calls/my').catch(() => setCalling(true));
             return;
         }
         
-        // Оптимістичний UI: одразу показуємо анімацію та тост
         setCalling(true);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 4000);
@@ -89,8 +86,18 @@ function CallWaiterButton() {
     );
 }
 
+// Новий тип для корзини з опціями
+type CartItem = {
+    cartId: string;
+    menuItemId: number;
+    name: string;
+    price: number; // Ціна за 1 шт (з урахуванням опцій)
+    quantity: number;
+    options: Record<string, string[]>;
+};
+
 function GuestFlow() {
-    const [cart, setCart] = useState<Record<number, number>>({});
+    const [cart, setCart] = useState<CartItem[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
 
     const fetchOrders = () => api.get('/orders/my').then(res => setOrders(res.data));
@@ -103,16 +110,24 @@ function GuestFlow() {
     }, []);
 
     const sendOrder = async () => {
-        const payloadItems = Object.entries(cart).map(([id, q]) => ({ menuItemId: parseInt(id), quantity: q }));
+        // Формуємо запит за новим форматом
+        const payloadItems = cart.map(c => ({
+            menuItemId: c.menuItemId,
+            quantity: c.quantity,
+            options: c.options
+        }));
+        
         if (!payloadItems.length) return;
+        
         try {
             await api.post('/orders', { items: payloadItems });
-            setCart({});
+            setCart([]);
             fetchOrders();
         } catch(e:any) { alert(e.response?.data?.message || 'Помилка замовлення'); }
     };
 
-    const count = Object.values(cart).reduce((a, b) => a + b, 0);
+    const count = cart.reduce((a, b) => a + b.quantity, 0);
+    const totalAmount = cart.reduce((a, b) => a + (b.price * b.quantity), 0);
 
     return (
         <div className="space-y-8 relative">
@@ -121,12 +136,14 @@ function GuestFlow() {
             
             {count > 0 && (
                 <div className="fixed bottom-6 left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
-                    <button onClick={sendOrder} className="w-full glass-dark text-white p-4 rounded-3xl font-bold flex justify-between items-center hover:scale-[1.02] active:scale-95 transition-transform">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
-                            <span className="text-lg">Оформити ({count})</span>
+                    <button onClick={sendOrder} className="w-full glass-dark text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform">
+                        <div className="flex justify-between items-center w-full">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
+                                <span className="text-lg">Оформити ({count})</span>
+                            </div>
+                            <span className="text-xl tracking-tight">{totalAmount} ₴ →</span>
                         </div>
-                        <span className="text-xl tracking-tight">В роботу →</span>
                     </button>
                 </div>
             )}
@@ -153,6 +170,16 @@ function ActiveOrders({ orders }: { orders: any[] }) {
             alert(e.response?.data?.message || 'Помилка оплати');
         }
     };
+    
+    const formatOptions = (optStr: string) => {
+        if (!optStr) return null;
+        try {
+            const parsed = JSON.parse(optStr);
+            const keys = Object.keys(parsed);
+            if (keys.length === 0) return null;
+            return keys.map(k => parsed[k]).join(', ');
+        } catch(e) { return null; }
+    };
 
     return (
         <div className="space-y-4">
@@ -168,19 +195,35 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                             </span>
                             <span className="text-xl font-bold tracking-tight text-slate-900">{o.total} ₴</span>
                         </div>
-                        <div className="text-sm text-slate-500 mb-5 space-y-2">
-                            {o.items.map((i: any, idx: number) => (
-                                <div key={idx} className="flex justify-between items-center">
-                                    <span className="flex items-center gap-2"><span className="text-slate-400 font-medium">{i.quantity}×</span> <span className="text-slate-700 font-medium">{i.name}</span></span>
-                                    <span>{i.priceAtTime * i.quantity} ₴</span>
+                        <div className="text-sm text-slate-500 mb-5 space-y-3">
+                            {o.items.map((i: any, idx: number) => {
+                                const opts = formatOptions(i.selectedOptions);
+                                return (
+                                <div key={idx} className="flex justify-between items-start">
+                                    <div className="flex gap-2">
+                                        <span className="text-slate-400 font-medium whitespace-nowrap">{i.quantity}×</span> 
+                                        <div>
+                                            <div className="text-slate-700 font-medium leading-tight">{i.name}</div>
+                                            {opts && <div className="text-xs text-slate-400 mt-0.5">{opts}</div>}
+                                        </div>
+                                    </div>
+                                    <span className="font-medium whitespace-nowrap ml-2">{i.priceAtTime * i.quantity} ₴</span>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                         {!o.paid ? (
-                            <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 transition-colors">
-                                <CreditCardIcon className="w-5 h-5" />
-                                {checkingOut === o.id ? 'Зачекайте...' : 'Сплатити онлайн'}
-                            </button>
+                            <div className="flex flex-col gap-2 mt-4">
+                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 transition-colors">
+                                    <CreditCardIcon className="w-5 h-5" />
+                                    {checkingOut === o.id ? 'Зачекайте...' : 'Оплатити онлайн (LiqPay)'}
+                                </button>
+                                <button onClick={() => {
+                                    api.post('/service-calls', { type: 'BILL' }).then(() => alert('Офіціант зараз підійде з рахунком!'));
+                                }} className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-800 p-3.5 rounded-2xl font-semibold hover:bg-slate-200 transition-colors">
+                                    <BanknotesIcon className="w-5 h-5" />
+                                    Готівкою або терміналом
+                                </button>
+                            </div>
                         ) : (
                             <div className="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 p-3.5 rounded-2xl font-bold ring-1 ring-emerald-200">
                                 <CheckCircleIcon className="w-5 h-5" /> Оплачено
@@ -193,11 +236,15 @@ function ActiveOrders({ orders }: { orders: any[] }) {
     );
 }
 
-function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any }) {
+function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
     const [items, setItems] = useState<any[]>([]);
     const [activeCategory, setActiveCategory] = useState<string>('');
     const [selectedItem, setSelectedItem] = useState<any>(null); // Для модалки
     const [likedItems, setLikedItems] = useState<Set<number>>(new Set());
+    
+    // Стейт для опцій в модалці
+    const [modalOptions, setModalOptions] = useState<Record<string, string[]>>({});
+    const [modalPrice, setModalPrice] = useState<number>(0);
 
     useEffect(() => { 
         api.get('/menu/items').then(res => {
@@ -206,20 +253,144 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
             if (cats.length > 0) setActiveCategory(cats[0] as string);
         }); 
         
-        // Завантажуємо локальні лайки
         try {
             const saved = localStorage.getItem('liked_items');
             if (saved) setLikedItems(new Set(JSON.parse(saved)));
         } catch(e) {}
     }, []);
+    
+    // Обчислення ціни в модалці при зміні опцій
+    useEffect(() => {
+        if (!selectedItem) return;
+        let p = parseFloat(selectedItem.price);
+        if (selectedItem.variations) {
+            try {
+                const vars = JSON.parse(selectedItem.variations);
+                const selectedOpts: any[] = [];
+                for (const vGroup of vars) {
+                    const selectedOptNames = modalOptions[vGroup.name] || [];
+                    for (const selectedOptName of selectedOptNames) {
+                        const opt = vGroup.options.find((o:any) => o.name === selectedOptName);
+                        if (opt) selectedOpts.push(opt);
+                    }
+                }
+                
+                // First apply absolute prices
+                for (const opt of selectedOpts) {
+                    if (opt.isAbsolute) p = parseFloat(opt.price);
+                }
+                
+                // Then apply additive prices
+                for (const opt of selectedOpts) {
+                    if (!opt.isAbsolute) p += parseFloat(opt.price);
+                }
+            } catch(e) {}
+        }
+        setModalPrice(p);
+    }, [selectedItem, modalOptions]);
 
-    const add = (id: number) => setCart((c: any) => ({ ...c, [id]: (c[id] || 0) + 1 }));
-    const sub = (id: number) => setCart((c: any) => { const nc = { ...c, [id]: c[id] - 1 }; if (nc[id] <= 0) delete nc[id]; return nc; });
+    const openModal = (item: any) => {
+        setSelectedItem(item);
+        setModalPrice(parseFloat(item.price));
+        
+        // Виставляємо дефолтні опції (першу в групі)
+        const defOpts: Record<string, string[]> = {};
+        if (item.variations) {
+            try {
+                const vars = JSON.parse(item.variations);
+                for (const vGroup of vars) {
+                    if (vGroup.options && vGroup.options.length > 0 && vGroup.type === 'SINGLE') {
+                        defOpts[vGroup.name] = [vGroup.options[0].name];
+                    } else if (vGroup.type === 'MULTIPLE') {
+                        defOpts[vGroup.name] = [];
+                    }
+                }
+            } catch(e) {}
+        }
+        setModalOptions(defOpts);
+    };
+
+    const addToCart = () => {
+        if (!selectedItem) return;
+        
+        // Шукаємо чи є вже такий товар З ТАКИМИ Ж ОПЦІЯМИ
+        const existingIdx = cart.findIndex(c => 
+            c.menuItemId === selectedItem.id && 
+            JSON.stringify(c.options) === JSON.stringify(modalOptions)
+        );
+        
+        if (existingIdx >= 0) {
+            const newCart = [...cart];
+            newCart[existingIdx].quantity += 1;
+            setCart(newCart);
+        } else {
+            setCart([...cart, {
+                cartId: Math.random().toString(36).substring(7),
+                menuItemId: selectedItem.id,
+                name: selectedItem.name,
+                price: modalPrice,
+                quantity: 1,
+                options: modalOptions
+            }]);
+        }
+        setSelectedItem(null);
+    };
+    
+    // Quick Add from Grid (uses default options)
+    const quickAdd = (item: any) => {
+        let p = parseFloat(item.price);
+        const defOpts: Record<string, string[]> = {};
+        if (item.variations) {
+            try {
+                const vars = JSON.parse(item.variations);
+                const selectedOpts: any[] = [];
+                for (const vGroup of vars) {
+                    if (vGroup.options && vGroup.options.length > 0 && vGroup.type === 'SINGLE') {
+                        const opt = vGroup.options[0];
+                        defOpts[vGroup.name] = [opt.name];
+                        selectedOpts.push(opt);
+                    } else if (vGroup.type === 'MULTIPLE') {
+                        defOpts[vGroup.name] = [];
+                    }
+                }
+                
+                for (const opt of selectedOpts) {
+                    if (opt.isAbsolute) p = parseFloat(opt.price);
+                }
+                for (const opt of selectedOpts) {
+                    if (!opt.isAbsolute) p += parseFloat(opt.price);
+                }
+            } catch(e) {}
+        }
+        
+        const existingIdx = cart.findIndex(c => 
+            c.menuItemId === item.id && 
+            JSON.stringify(c.options) === JSON.stringify(defOpts)
+        );
+        
+        if (existingIdx >= 0) {
+            const newCart = [...cart];
+            newCart[existingIdx].quantity += 1;
+            setCart(newCart);
+        } else {
+            setCart([...cart, {
+                cartId: Math.random().toString(36).substring(7),
+                menuItemId: item.id,
+                name: item.name,
+                price: p,
+                quantity: 1,
+                options: defOpts
+            }]);
+        }
+    };
+    
+    const updateCartQty = (cartId: string, delta: number) => {
+        setCart(prev => prev.map(c => c.cartId === cartId ? {...c, quantity: c.quantity + delta} : c).filter(c => c.quantity > 0));
+    };
 
     const handleLike = (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         const isLiked = likedItems.has(id);
-        
         if (isLiked) {
             api.delete(`/menu/items/${id}/like`).catch(()=>{});
             const newSet = new Set(likedItems);
@@ -240,8 +411,48 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
     const categories = Array.from(new Set(items.filter(i => i.isAvailable).map(i => i.categoryName)));
     const currentItems = items.filter(i => i.isAvailable && i.categoryName === activeCategory);
 
+    // Допоміжна функція для рендеру опцій
+    const renderVariations = (variationsStr: string) => {
+        try {
+            const vars = JSON.parse(variationsStr);
+            return vars.map((group: any, idx: number) => (
+                <div key={idx} className="mb-5">
+                    <h3 className="font-bold text-slate-900 mb-2">{group.name}</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {group.options.map((opt: any, optIdx: number) => {
+                            const isSelected = (modalOptions[group.name] || []).includes(opt.name);
+                            const toggleOption = () => {
+                                const current = modalOptions[group.name] || [];
+                                let next;
+                                if (group.type === 'SINGLE') {
+                                    next = [opt.name]; // always select exactly one
+                                } else {
+                                    if (isSelected) next = current.filter((n: string) => n !== opt.name);
+                                    else next = [...current, opt.name];
+                                }
+                                setModalOptions({...modalOptions, [group.name]: next});
+                            };
+                            return (
+                                <button 
+                                    key={optIdx}
+                                    onClick={toggleOption}
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                                >
+                                    {opt.name} 
+                                    <span className={`ml-1 opacity-75 text-xs`}>
+                                        {opt.isAbsolute ? `${opt.price} ₴` : (opt.price > 0 ? `+${opt.price} ₴` : '')}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ));
+        } catch(e) { return null; }
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20">
             {/* Горизонтальний список категорій */}
             <div className="flex gap-3 overflow-x-auto pb-4 pt-2 -mx-6 px-6 scroll-pl-6 no-scrollbar snap-x after:content-[''] after:w-1 after:shrink-0">
                 {categories.map((cat: any) => (
@@ -258,20 +469,25 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
             {/* Модалка з інформацією про продукт */}
             {selectedItem && createPortal(
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-0 animate-slideUpFade" onClick={() => setSelectedItem(null)}>
-                    <div className="bg-white w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
-                        {selectedItem.imageUrl && <img src={selectedItem.imageUrl} className="w-full aspect-[4/3] object-cover" />}
-                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md">✕</button>
+                    <div className="bg-white w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                        {selectedItem.imageUrl && <div className="shrink-0"><img src={selectedItem.imageUrl} className="w-full aspect-[4/3] object-cover" /></div>}
+                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10">✕</button>
                         
-                        <div className="p-6">
+                        <div className="p-6 overflow-y-auto">
                             <div className="flex justify-between items-start mb-2">
                                 <h2 className="text-2xl font-bold text-slate-900 leading-tight pr-4">{selectedItem.name}</h2>
-                                <span className="text-xl font-bold whitespace-nowrap">{selectedItem.price} ₴</span>
                             </div>
                             
                             <div className="flex items-center gap-2 mb-6 text-sm font-medium text-pink-500 bg-pink-50 w-fit px-3 py-1 rounded-full">
                                 <HeartIcon className="w-4 h-4" /> 
                                 {(selectedItem.favoritesCount || 0)} людям подобається
                             </div>
+
+                            {selectedItem.variations && (
+                                <div className="mb-6 pt-4 border-t border-slate-100">
+                                    {renderVariations(selectedItem.variations)}
+                                </div>
+                            )}
 
                             {selectedItem.ingredients && (
                                 <div className="mb-4">
@@ -287,13 +503,17 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
                                 </div>
                             )}
 
-                            {!selectedItem.ingredients && !selectedItem.allergens && (
+                            {!selectedItem.ingredients && !selectedItem.allergens && !selectedItem.variations && (
                                 <p className="text-slate-500 mb-6 italic">Детальна інформація відсутня</p>
                             )}
 
-                            <button onClick={() => { add(selectedItem.id); setSelectedItem(null); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-colors">
-                                Додати за {selectedItem.price} ₴
-                            </button>
+                            <div className="pt-4 border-t border-slate-100 sticky bottom-0 bg-white">
+                                <button onClick={addToCart} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-colors flex justify-center gap-2 items-center">
+                                    <span>Додати</span>
+                                    <span className="opacity-50">•</span>
+                                    <span>{modalPrice} ₴</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>,
@@ -302,9 +522,12 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
 
             {/* Сітка товарів */}
             <div className="grid grid-cols-2 gap-4">
-                {currentItems.map((i:any) => (
+                {currentItems.map((i:any) => {
+                    // Рахуємо скільки ТАКИХ товарів (з будь-якими опціями) в кошику
+                    const qtyInCart = cart.filter(c => c.menuItemId === i.id).reduce((sum, c) => sum + c.quantity, 0);
+                    
+                    return (
                     <div key={i.id} className="flex flex-col bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg transition-all group relative">
-                        {/* Кнопка лайку */}
                         <button 
                             onClick={(e) => handleLike(e, i.id)} 
                             className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-sm text-xs font-bold text-slate-600 transition-transform active:scale-90"
@@ -313,7 +536,7 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
                             <span className={likedItems.has(i.id) ? "text-pink-600" : "text-slate-500"}>{i.favoritesCount || 0}</span>
                         </button>
                         
-                        <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 relative" onClick={() => setSelectedItem(i)}>
+                        <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 relative" onClick={() => openModal(i)}>
                             {i.imageUrl ? 
                                 <img src={i.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer" />
                                 : <div className="w-full h-full cursor-pointer"></div>
@@ -325,24 +548,53 @@ function Menu({ cart, setCart }: { cart: Record<number, number>, setCart: any })
                         </div>
                         
                         <div className="p-4 flex flex-col flex-1">
-                            <h3 className="font-semibold text-slate-900 leading-tight mb-1 text-sm" onClick={() => setSelectedItem(i)}>{i.name}</h3>
-                            <p className="text-slate-500 font-medium mb-4 flex-1 text-sm">{i.price} ₴</p>
+                            <h3 className="font-semibold text-slate-900 leading-tight mb-1 text-sm cursor-pointer hover:underline" onClick={() => openModal(i)}>{i.name}</h3>
+                            <p className="text-slate-500 font-medium mb-4 flex-1 text-sm cursor-pointer" onClick={() => openModal(i)}>{i.price} ₴</p>
                             
-                            {cart[i.id] ? (
-                                <div className="flex justify-between items-center bg-slate-100 rounded-2xl p-1 shadow-inner h-11">
-                                    <button onClick={() => sub(i.id)} className="w-9 h-9 flex items-center justify-center bg-white rounded-xl shadow-sm font-medium text-xl text-slate-600 active:scale-95 transition-all">−</button>
-                                    <span className="font-bold text-slate-900 text-center">{cart[i.id]}</span>
-                                    <button onClick={() => add(i.id)} className="w-9 h-9 flex items-center justify-center bg-white rounded-xl shadow-sm font-medium text-xl text-slate-600 active:scale-95 transition-all">+</button>
+                            {qtyInCart > 0 ? (
+                                <div className="flex justify-between items-center bg-slate-100 rounded-2xl p-1 shadow-inner h-11 px-4">
+                                    <span className="text-sm font-medium text-slate-500">В кошику:</span>
+                                    <span className="font-bold text-slate-900 text-center text-lg">{qtyInCart}</span>
                                 </div>
                             ) : (
-                                <button onClick={() => add(i.id)} className="w-full bg-slate-50 font-bold text-slate-700 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 hover:bg-slate-100">
+                                <button onClick={() => quickAdd(i)} className="w-full bg-slate-50 font-bold text-slate-700 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 hover:bg-slate-100">
                                     Додати
                                 </button>
                             )}
                         </div>
                     </div>
-                ))}
+                )})}
             </div>
+            
+            {/* Відображення детального кошика перед кнопкою "Оформити" */}
+            {cart.length > 0 && (
+                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-8">
+                    <h3 className="font-bold text-slate-900 mb-4 text-lg">Ваш кошик</h3>
+                    <div className="space-y-4">
+                        {cart.map(c => {
+                            const optKeys = Object.keys(c.options);
+                            return (
+                                <div key={c.cartId} className="flex justify-between items-center border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                                    <div className="flex-1">
+                                        <div className="font-medium text-slate-900">{c.name}</div>
+                                        {optKeys.length > 0 && (
+                                            <div className="text-xs text-slate-500 leading-tight mt-0.5">
+                                                {optKeys.map(k => c.options[k]).flat().filter(Boolean).join(', ')}
+                                            </div>
+                                        )}
+                                        <div className="text-slate-900 font-bold text-sm mt-1">{c.price} ₴</div>
+                                    </div>
+                                    <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1 shadow-inner shrink-0">
+                                        <button onClick={() => updateCartQty(c.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-slate-600 active:scale-95 transition-all">−</button>
+                                        <span className="font-bold text-slate-900 w-4 text-center">{c.quantity}</span>
+                                        <button onClick={() => updateCartQty(c.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-slate-600 active:scale-95 transition-all">+</button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

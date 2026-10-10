@@ -26,6 +26,8 @@ public record MenuItemRequest(
 
         String allergens,
 
+        String variations,
+
         @NotNull(message = "categoryId обов'язковий")
         Integer categoryId
 ) {}

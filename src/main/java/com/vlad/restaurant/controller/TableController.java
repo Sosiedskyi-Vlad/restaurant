@@ -19,23 +19,26 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/tables")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+
 public class TableController {
 
     private final TableService tableService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'WAITER')")
     public List<TableResponse> getAll() {
         return tableService.getAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public TableResponse create(@Valid @RequestBody TableCreateRequest request) {
         return tableService.create(request);
     }
 
     @PostMapping("/{id}/regenerate-qr")
+    @PreAuthorize("hasRole('ADMIN')")
     public TableResponse regenerateQr(@PathVariable UUID id) {
         return tableService.regenerateQr(id);
     }
@@ -43,6 +46,7 @@ public class TableController {
     // PNG для друку на наліпку. size у пікселях (128..2048).
     // Захищено JWT, тому фронтенд адміна завантажує його через fetch -> blob.
     @GetMapping(value = "/{id}/qr.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<byte[]> qrImage(@PathVariable UUID id, @RequestParam(defaultValue = "512") int size) {
         int safeSize = Math.max(128, Math.min(size, 2048));
         return ResponseEntity.ok()

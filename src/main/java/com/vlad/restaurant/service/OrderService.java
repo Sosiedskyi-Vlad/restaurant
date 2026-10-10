@@ -17,10 +17,13 @@ import com.vlad.restaurant.repository.OrderRepository;
 import com.vlad.restaurant.repository.RestaurantTableRepository;
 import com.vlad.restaurant.security.GuestPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -30,6 +33,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class OrderService {
 
@@ -73,8 +77,52 @@ public class OrderService {
             orderItem.setOrder(order);
             orderItem.setMenuItem(menuItem);
             orderItem.setQuantity(itemRequest.quantity());
-            // Фіксуємо ціну на момент замовлення
-            orderItem.setPriceAtTime(menuItem.getPrice());
+            // Фіксуємо ціну з урахуванням опцій
+            java.math.BigDecimal finalPrice = menuItem.getPrice();
+            String selectedOptionsStr = null;
+            if (itemRequest.options() != null && !itemRequest.options().isEmpty()) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    selectedOptionsStr = mapper.writeValueAsString(itemRequest.options());
+                    if (menuItem.getVariations() != null && !menuItem.getVariations().isBlank()) {
+                        java.util.List<Map<String, Object>> variations = mapper.readValue(menuItem.getVariations(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                        java.util.List<Map<String, Object>> selectedOpts = new java.util.ArrayList<>();
+                        
+                        for (Map.Entry<String, java.util.List<String>> entry : itemRequest.options().entrySet()) {
+                            for (Map<String, Object> varGroup : variations) {
+                                if (entry.getKey().equals(varGroup.get("name"))) {
+                                    java.util.List<Map<String, Object>> options = (java.util.List<Map<String, Object>>) varGroup.get("options");
+                                    for (Map<String, Object> opt : options) {
+                                        if (entry.getValue().contains(opt.get("name"))) {
+                                            selectedOpts.add(opt);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // First apply absolute prices
+                        for (Map<String, Object> opt : selectedOpts) {
+                            Boolean isAbsolute = (Boolean) opt.get("isAbsolute");
+                            if (Boolean.TRUE.equals(isAbsolute)) {
+                                finalPrice = new java.math.BigDecimal(opt.get("price").toString());
+                            }
+                        }
+                        
+                        // Then apply additive prices
+                        for (Map<String, Object> opt : selectedOpts) {
+                            Boolean isAbsolute = (Boolean) opt.get("isAbsolute");
+                            if (!Boolean.TRUE.equals(isAbsolute)) {
+                                finalPrice = finalPrice.add(new java.math.BigDecimal(opt.get("price").toString()));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Помилка парсингу опцій", e);
+                }
+            }
+            orderItem.setPriceAtTime(finalPrice);
+            orderItem.setSelectedOptions(selectedOptionsStr);
             order.getItems().add(orderItem);
         }
 

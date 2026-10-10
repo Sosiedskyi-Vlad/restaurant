@@ -45,4 +45,7 @@ public class MenuItem {
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
+
+    @Column(columnDefinition = "TEXT")
+    private String variations;
 }

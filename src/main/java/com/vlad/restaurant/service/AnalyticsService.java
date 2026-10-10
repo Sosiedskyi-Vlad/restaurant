@@ -43,6 +43,9 @@ public class AnalyticsService {
 
         Double seconds = repository.avgCookingSeconds(start, end);
         Double minutes = seconds == null ? null : Math.round(seconds / 60.0 * 10) / 10.0;
+        
+        Double waiterSeconds = repository.avgWaiterReactionSeconds(start, end);
+        Double waiterMinutes = waiterSeconds == null ? null : Math.round(waiterSeconds / 60.0 * 10) / 10.0;
 
         List<AnalyticsResponse.TopItem> top = repository.topItems(start, end, PageRequest.of(0, topLimit));
 
@@ -53,7 +56,7 @@ public class AnalyticsService {
                         ((Number) r[2]).longValue()))
                 .toList();
 
-        return new AnalyticsResponse(from, to, revenue, paidOrders, average, minutes, top, byDay);
+        return new AnalyticsResponse(from, to, revenue, paidOrders, average, minutes, waiterMinutes, top, byDay);
     }
 
     // Залежно від версії Hibernate/драйвера native-запит віддає LocalDate або java.sql.Date

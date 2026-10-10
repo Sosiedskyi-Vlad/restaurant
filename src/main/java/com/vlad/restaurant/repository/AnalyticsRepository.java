@@ -58,4 +58,11 @@ public interface AnalyticsRepository extends JpaRepository<Order, UUID> {
             order by day
             """, nativeQuery = true)
     List<Object[]> revenueByDay(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+    // Різниця між створенням і вирішенням виклику, у секундах
+    @Query(value = """
+            select avg(extract(epoch from (s.resolved_at - s.created_at)))
+            from service_calls s
+            where s.resolved_at is not null and s.resolved_at >= :from and s.resolved_at < :to
+            """, nativeQuery = true)
+    Double avgWaiterReactionSeconds(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

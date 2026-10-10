@@ -30,4 +30,7 @@ public class OrderItem {
     // Фіксуємо ціну, щоб старі чеки не змінювались, якщо завтра ціна в меню зросте
     @Column(name = "price_at_time", precision = 10, scale = 2)
     private BigDecimal priceAtTime;
+
+    @Column(name = "selected_options", columnDefinition = "TEXT")
+    private String selectedOptions;
 }

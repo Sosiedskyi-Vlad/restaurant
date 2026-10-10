@@ -86,11 +86,24 @@ function OrderCard({ order, onNext, btnText }: { order: any, onNext: () => void,
                 {order.paid && <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">ОПЛАЧЕНО</span>}
             </div>
             <ul className="mb-4 space-y-1">
-                {order.items.map((i: any, idx: number) => (
-                    <li key={idx} className="flex justify-between font-medium">
-                        <span>{i.quantity}x {i.name}</span>
-                    </li>
-                ))}
+                {order.items.map((i: any, idx: number) => {
+                    let optsDisplay = '';
+                    if (i.selectedOptions) {
+                        try {
+                            const parsed = JSON.parse(i.selectedOptions);
+                            const optList = Object.values(parsed).flat().filter(Boolean);
+                            if (optList.length > 0) optsDisplay = '(' + optList.join(', ') + ')';
+                        } catch(e) {}
+                    }
+                    return (
+                        <li key={idx} className="flex flex-col font-medium mb-2 border-b border-gray-50 pb-1 last:border-0">
+                            <div className="flex justify-between">
+                                <span>{i.quantity}x {i.name}</span>
+                            </div>
+                            {optsDisplay && <span className="text-xs text-indigo-600 font-bold ml-5">{optsDisplay}</span>}
+                        </li>
+                    );
+                })}
             </ul>
             <button onClick={onNext} className="w-full bg-black text-white py-2 rounded-lg font-bold text-sm hover:bg-gray-800">
                 {btnText}
