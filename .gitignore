@@ -34,3 +34,32 @@ build/
 
 ### Local secrets ###
 .env.properties
+
+### MacOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+### Frontend (React/Vite) ###
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.eslintcache
+frontend/coverage/
+
+### Application Data ###
+/uploads/
+uploads/
+*.log
+logs/
+
+### Other Environment Files ###
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

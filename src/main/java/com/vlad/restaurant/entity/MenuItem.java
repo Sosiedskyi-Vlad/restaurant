@@ -23,6 +23,16 @@ public class MenuItem {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String ingredients;
+
+    @Column(columnDefinition = "TEXT")
+    private String allergens;
+
+    @Column(name = "favorites_count", nullable = false)
+    @ColumnDefault("0")
+    private Integer favoritesCount = 0;
+
     // Стоп-лист: false = страви немає на кухні
     @Column(name = "is_available")
     private boolean available = true;

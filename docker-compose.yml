@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: restaurant_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-restaurant_db}
+      POSTGRES_USER: ${POSTGRES_USER:-vlad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "54321:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vlad} -d ${POSTGRES_DB:-restaurant_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: restaurant_backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-restaurant_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-vlad}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      WS_ALLOWED_ORIGINS: ${WS_ALLOWED_ORIGINS:-*}
+      LIQPAY_PUBLIC_KEY: ${LIQPAY_PUBLIC_KEY}
+      LIQPAY_PRIVATE_KEY: ${LIQPAY_PRIVATE_KEY}
+      LIQPAY_SANDBOX: ${LIQPAY_SANDBOX:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: restaurant_frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads:
