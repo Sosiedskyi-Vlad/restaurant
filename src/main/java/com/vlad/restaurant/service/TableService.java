@@ -62,6 +62,10 @@ public class TableService {
         RestaurantTable table = new RestaurantTable();
         table.setNumber(request.number());
         table.setQrCodeHash(generateQrHash());
+        if (request.zone() != null) table.setZone(request.zone());
+        if (request.shape() != null) table.setShape(request.shape());
+        if (request.seats() != null) table.setSeats(request.seats());
+        if (request.rotation() != null) table.setRotation(request.rotation());
         return TableResponse.from(repository.save(table));
     }
 
@@ -99,6 +103,10 @@ public class TableService {
             repository.findById(req.id()).ifPresent(t -> {
                 t.setPositionX(req.positionX());
                 t.setPositionY(req.positionY());
+                if (req.zone() != null) t.setZone(req.zone());
+                if (req.shape() != null) t.setShape(req.shape());
+                if (req.seats() != null) t.setSeats(req.seats());
+                if (req.rotation() != null) t.setRotation(req.rotation());
                 repository.save(t);
             });
         }
