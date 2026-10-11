@@ -8,7 +8,9 @@ import {
     BanknotesIcon, 
     ClockIcon, 
     MapIcon, 
-    ListBulletIcon 
+    ListBulletIcon,
+    FireIcon,
+    CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { ZONES, HallElementItem } from './AdminTables';
 
@@ -61,36 +63,42 @@ export default function WaiterBoard() {
         window.dispatchEvent(new Event('refresh-badges'));
     };
 
+    const updateOrderStatus = async (id: string, target: string) => {
+        try {
+            await api.patch(`/orders/${id}/status`, { status: target });
+            loadData();
+            window.dispatchEvent(new Event('refresh-badges'));
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Помилка оновлення статусу');
+        }
+    };
+
     const getTableStatus = (tableNum: number) => {
         const tableCalls = calls.filter(c => c.tableNumber === tableNum);
         const hasWaiterCall = tableCalls.some(c => c.type === 'WAITER');
         const hasBillCall = tableCalls.some(c => c.type === 'BILL');
         const tableOrders = orders.filter(o => o.tableNumber === tableNum);
+        const hasReadyFood = tableOrders.some(o => o.status === 'READY');
 
         if (hasWaiterCall) return 'red';
         if (hasBillCall) return 'blue';
+        if (hasReadyFood) return 'orange';
         if (tableOrders.length > 0) return 'yellow';
         return 'green';
-    };
-
-    const getTableCallMinutes = (tableNum: number) => {
-        const tableCalls = calls.filter(c => c.tableNumber === tableNum);
-        if (tableCalls.length === 0) return null;
-        const earliest = Math.min(...tableCalls.map(c => new Date(c.createdAt).getTime()));
-        const diffMinutes = Math.floor((Date.now() - earliest) / 60000);
-        return diffMinutes <= 0 ? '<1 хв' : `${diffMinutes} хв`;
     };
 
     const getStatusClasses = (status: string) => {
         switch(status) {
             case 'red': 
-                return 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/50 animate-pulse border-red-300 ring-4 ring-red-400/40';
+                return 'bg-red-500 hover:bg-red-600 text-white shadow-xl shadow-red-500/50 animate-pulse border-red-300 ring-4 ring-red-400/40';
             case 'blue': 
-                return 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/40 border-blue-400 ring-2 ring-blue-400/30';
+                return 'bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/40 border-blue-400 ring-2 ring-blue-400/30';
+            case 'orange':
+                return 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/50 border-amber-300 ring-4 ring-amber-400/50';
             case 'yellow': 
-                return 'bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-amber-400/40 border-amber-300';
+                return 'bg-amber-400 hover:bg-amber-500 text-amber-950 shadow-md shadow-amber-400/30 border-amber-300';
             case 'green': 
-                return 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30 border-emerald-400';
+                return 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30 border-emerald-400/60 opacity-90 hover:opacity-100';
             default: 
                 return 'bg-slate-700 text-white border-slate-600';
         }
@@ -181,7 +189,10 @@ export default function WaiterBoard() {
                                 <div className="w-3 h-3 rounded-full bg-emerald-500"></div> Вільний
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 rounded-full bg-amber-400"></div> Є замовлення
+                                <div className="w-3 h-3 rounded-full bg-amber-400"></div> Готується
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></div> 🔥 Готово до видачі
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-3 h-3 rounded-full bg-blue-600"></div> Рахунок
@@ -194,42 +205,54 @@ export default function WaiterBoard() {
                     </div>
 
                     {/* Interactive 2D Map Canvas */}
-                    <div className="relative w-full aspect-[4/3] md:aspect-[16/9] bg-slate-950 rounded-3xl overflow-hidden border-4 border-slate-800 shadow-2xl select-none"
-                         style={{ 
-                             backgroundImage: `
-                                 radial-gradient(circle, rgba(255, 255, 255, 0.07) 1.5px, transparent 1.5px),
-                                 linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                                 linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px)
-                             `,
-                             backgroundSize: '30px 30px, 60px 60px, 60px 60px'
-                         }}
-                    >
+                    <div className="relative w-full aspect-[4/3] md:aspect-[16/9] rounded-3xl select-none shadow-2xl">
+                        {/* SVG Blueprint Floor natively masked inside SVG (100% support for Safari, Chrome & Firefox) */}
+                        <svg className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden pointer-events-none" width="100%" height="100%">
+                            <defs>
+                                <mask id={`hall-mask-${currentZone}`} maskContentUnits="objectBoundingBox">
+                                    <rect x="0" y="0" width="1" height="1" fill="white" />
+                                    {zoneElements.filter(el => el.type === 'VOID').map(el => (
+                                        <rect
+                                            key={el.id}
+                                            x={(el.positionX - el.width / 2) / 100}
+                                            y={(el.positionY - el.height / 2) / 100}
+                                            width={el.width / 100}
+                                            height={el.height / 100}
+                                            rx="0.02"
+                                            ry="0.035"
+                                            fill="black"
+                                            transform={el.rotation ? `rotate(${el.rotation} ${el.positionX / 100} ${el.positionY / 100})` : undefined}
+                                        />
+                                    ))}
+                                </mask>
+                                <pattern id={`grid-dots-${currentZone}`} width="30" height="30" patternUnits="userSpaceOnUse">
+                                    <circle cx="2" cy="2" r="1.5" fill="rgba(255, 255, 255, 0.08)" />
+                                </pattern>
+                            </defs>
+                            {/* Base dark floor */}
+                            <rect 
+                                width="100%" 
+                                height="100%" 
+                                fill="#020617" 
+                                mask={zoneElements.some(el => el.type === 'VOID') ? `url(#hall-mask-${currentZone})` : undefined} 
+                            />
+                            {/* Blueprint grid dots */}
+                            <rect 
+                                width="100%" 
+                                height="100%" 
+                                fill={`url(#grid-dots-${currentZone})`} 
+                                mask={zoneElements.some(el => el.type === 'VOID') ? `url(#hall-mask-${currentZone})` : undefined} 
+                            />
+                        </svg>
+
                         {/* Zone Watermark */}
                         <div className="absolute top-5 left-7 text-slate-800 text-3xl font-black tracking-widest uppercase pointer-events-none">
                             {ZONES.find(z => z.id === currentZone)?.name}
                         </div>
 
-                        {/* Render Interior Decor, Walls and Cutouts */}
-                        {zoneElements.map(el => {
+                        {/* Render Interior Decor & Walls (VOID cutouts are physically masked, no fake boxes!) */}
+                        {zoneElements.filter(el => el.type !== 'VOID').map(el => {
                             const rot = el.rotation || 0;
-
-                            // Зріз площі: на карті офіціанта це бездоганний зріз (колір фону сторінки + стіна по контуру)
-                            // Без жодного зайвого тексту, смуг чи іконок!
-                            if (el.type === 'VOID') {
-                                return (
-                                    <div
-                                        key={el.id}
-                                        className="absolute bg-slate-50 dark:bg-slate-900 border-4 border-slate-700 dark:border-slate-800 rounded-2xl pointer-events-none z-15"
-                                        style={{
-                                            left: `${el.positionX}%`,
-                                            top: `${el.positionY}%`,
-                                            width: `${el.width}%`,
-                                            height: `${el.height}%`,
-                                            transform: `translate(-50%, -50%) rotate(${rot}deg)`,
-                                        }}
-                                    />
-                                );
-                            }
 
                             let bgStyle = 'bg-slate-900/90 border-slate-700 text-slate-300';
                             let icon = '🧱';
@@ -265,67 +288,182 @@ export default function WaiterBoard() {
                                         height: `${el.height}%`,
                                         transform: `translate(-50%, -50%) rotate(${rot}deg)`
                                     }}
+                                    title={el.name}
                                 >
-                                    {icon && <span className="text-sm">{icon}</span>}
-                                    <span className="font-bold text-[11px] tracking-wide truncate max-w-[85%] opacity-90">
-                                        {el.name}
-                                    </span>
+                                    {el.type !== 'WALL' && (
+                                        <div 
+                                            className="flex items-center justify-center gap-1.5 max-w-full px-1"
+                                            style={{ transform: `rotate(${-rot}deg)` }}
+                                        >
+                                            {icon && <span className="text-sm">{icon}</span>}
+                                            <span className="font-bold text-[11px] tracking-wide truncate opacity-90">
+                                                {el.name}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
 
-                        {/* Render Interactive Tables */}
+                        {/* Render Interactive Informative Tables */}
                         {zoneTables.map((t, i) => {
                             const status = getTableStatus(t.number);
-                            const callMinutes = getTableCallMinutes(t.number);
                             const posX = t.positionX ?? (12 + (i % 6) * 14);
                             const posY = t.positionY ?? (15 + Math.floor(i / 6) * 20);
-                            const shape = t.shape || 'SQUARE';
+                            const shape = (t.shape === 'ROUND' ? 'SQUARE' : t.shape) || 'SQUARE';
                             const seats = t.seats || 4;
                             const rot = t.rotation || 0;
+                            const isVertical = shape === 'RECTANGLE' && (rot % 180 === 90 || rot % 180 === 270);
 
-                            let shapeClasses = 'w-16 h-16 sm:w-20 sm:h-20 rounded-2xl';
-                            if (shape === 'ROUND') {
-                                shapeClasses = 'w-16 h-16 sm:w-20 sm:h-20 rounded-full';
-                            } else if (shape === 'RECTANGLE') {
-                                shapeClasses = 'w-24 h-14 sm:w-28 sm:h-16 rounded-2xl';
+                            const tCalls = calls.filter(c => c.tableNumber === t.number);
+                            const tOrders = orders.filter(o => o.tableNumber === t.number);
+                            const totalBill = tOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+                            const totalDishesCount = tOrders.reduce((sum, o) => sum + o.items.reduce((iSum: number, item: any) => iSum + item.quantity, 0), 0);
+
+                            // Elapsed order time
+                            const earliestOrderTime = tOrders.length > 0 
+                                ? Math.min(...tOrders.map(o => new Date(o.createdAt).getTime()))
+                                : null;
+                            const orderMinutes = earliestOrderTime 
+                                ? Math.max(0, Math.floor((Date.now() - earliestOrderTime) / 60000))
+                                : null;
+
+                            // Elapsed call time
+                            const earliestCallTime = tCalls.length > 0 
+                                ? Math.min(...tCalls.map(c => new Date(c.createdAt).getTime()))
+                                : null;
+                            const callMinutes = earliestCallTime 
+                                ? Math.max(0, Math.floor((Date.now() - earliestCallTime) / 60000))
+                                : null;
+                            const callDurationStr = callMinutes !== null ? (callMinutes <= 0 ? '<1 хв' : `${callMinutes} хв`) : null;
+
+                            let shapeClasses = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl';
+                            if (shape === 'RECTANGLE') {
+                                shapeClasses = isVertical 
+                                    ? 'w-20 h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 rounded-2xl'
+                                    : 'w-28 h-20 sm:w-36 sm:h-24 md:w-40 md:h-28 rounded-2xl';
                             }
 
                             return (
                                 <button
                                     key={t.id}
                                     onClick={() => setSelectedTable(t)}
-                                    className={`absolute flex flex-col items-center justify-center shadow-xl transition-all transform hover:scale-110 active:scale-95 border-2 ${shapeClasses} ${getStatusClasses(status)}`}
+                                    className={`absolute flex flex-col justify-between items-center p-2 shadow-xl transition-all transform hover:scale-105 active:scale-95 border-2 ${shapeClasses} ${getStatusClasses(status)}`}
                                     style={{
                                         left: `${posX}%`,
                                         top: `${posY}%`,
-                                        transform: `translate(-50%, -50%) rotate(${rot}deg)`,
-                                        zIndex: status === 'red' ? 30 : 20
+                                        transform: 'translate(-50%, -50%)',
+                                        zIndex: status === 'red' ? 30 : status === 'orange' ? 25 : 20
                                     }}
-                                    title={`Стіл ${t.number} (${seats} місць)`}
+                                    title={`Стіл №${t.number} (${seats} місць)`}
                                 >
-                                    {/* Number and seats */}
-                                    <span className="text-xl sm:text-2xl font-black leading-none drop-shadow-sm select-none">
-                                        {t.number}
-                                    </span>
-                                    <span className="text-[10px] font-bold opacity-80 mt-0.5 select-none">
-                                        👥 {seats}
-                                    </span>
+                                    {/* Top row: Table number & seats */}
+                                    <div className="w-full flex items-center justify-between px-0.5 leading-none select-none">
+                                        <span className="text-sm sm:text-base md:text-lg font-black tracking-tight drop-shadow-sm">
+                                            №{t.number}
+                                        </span>
+                                        <span className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-black/25 backdrop-blur-xs text-white">
+                                            👥 {seats}
+                                        </span>
+                                    </div>
 
-                                    {/* Status Badges */}
+                                    {/* Middle: Core real-time status info */}
+                                    <div className="flex flex-col items-center justify-center my-auto leading-tight select-none">
+                                        {status === 'red' ? (
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[11px] sm:text-xs font-black tracking-tight uppercase animate-bounce">
+                                                    👋 КЛИЧЕ!
+                                                </span>
+                                                <span className="text-[10px] font-extrabold opacity-95">
+                                                    {callDurationStr}
+                                                </span>
+                                            </div>
+                                        ) : status === 'blue' ? (
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[11px] sm:text-xs font-black tracking-tight uppercase">
+                                                    💳 РАХУНОК
+                                                </span>
+                                                {totalBill > 0 && (
+                                                    <span className="text-[11px] sm:text-xs font-black drop-shadow-sm">
+                                                        {totalBill} ₴
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : status === 'orange' ? (
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[10px] sm:text-[11px] font-black bg-white text-amber-700 dark:bg-slate-900 dark:text-amber-400 px-1.5 py-0.5 rounded-md shadow-sm uppercase animate-pulse">
+                                                    🍳 ГОТОВО!
+                                                </span>
+                                                <span className="text-[10px] font-bold mt-0.5">
+                                                    {totalBill > 0 ? `${totalBill} ₴` : 'Видача'}
+                                                </span>
+                                            </div>
+                                        ) : status === 'yellow' ? (
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-xs sm:text-sm font-black tracking-tight">
+                                                    {totalBill} ₴
+                                                </span>
+                                                {orderMinutes !== null && (
+                                                    <span className="text-[10px] font-bold opacity-85 flex items-center gap-0.5">
+                                                        ⏱️ {orderMinutes} хв
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center opacity-90">
+                                                <span className="text-[11px] sm:text-xs font-bold">
+                                                    Вільний
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Bottom row: Subtitle context */}
+                                    <div className="w-full flex items-center justify-center text-center leading-none select-none">
+                                        {status === 'red' || status === 'blue' ? (
+                                            totalBill > 0 ? (
+                                                <span className="text-[9px] sm:text-[10px] font-bold opacity-90 truncate">
+                                                    Чек: {totalBill} ₴
+                                                </span>
+                                            ) : (
+                                                <span className="text-[9px] sm:text-[10px] opacity-80">
+                                                    {seats} місць
+                                                </span>
+                                            )
+                                        ) : status === 'orange' ? (
+                                            <span className="text-[9px] sm:text-[10px] font-black text-amber-100 uppercase">
+                                                Забрати страву
+                                            </span>
+                                        ) : status === 'yellow' ? (
+                                            <span className="text-[9px] sm:text-[10px] font-bold opacity-85 truncate">
+                                                {totalDishesCount} {totalDishesCount === 1 ? 'страва' : totalDishesCount < 5 ? 'страви' : 'страв'}
+                                            </span>
+                                        ) : (
+                                            <span className="text-[9px] sm:text-[10px] font-medium text-emerald-100 opacity-80">
+                                                Готовий
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Floating Corner Notification Badges */}
                                     {status === 'red' && (
                                         <div className="absolute -top-3 -right-3 flex items-center">
-                                            <BellIcon className="w-8 h-8 bg-red-600 rounded-full p-1.5 text-white shadow-lg animate-bounce border-2 border-white dark:border-slate-900" />
-                                            {callMinutes && (
-                                                <span className="absolute -bottom-4 right-0 bg-red-950 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow whitespace-nowrap">
-                                                    {callMinutes}
+                                            <BellIcon className="w-8 h-8 bg-red-600 rounded-full p-1.5 text-white shadow-xl animate-bounce border-2 border-white dark:border-slate-900" />
+                                            {callDurationStr && (
+                                                <span className="absolute -bottom-3 right-0 bg-red-950 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shadow whitespace-nowrap">
+                                                    {callDurationStr}
                                                 </span>
                                             )}
                                         </div>
                                     )}
                                     {status === 'blue' && (
                                         <div className="absolute -top-3 -right-3">
-                                            <BanknotesIcon className="w-8 h-8 bg-blue-600 rounded-full p-1.5 text-white shadow-lg border-2 border-white dark:border-slate-900" />
+                                            <BanknotesIcon className="w-8 h-8 bg-blue-600 rounded-full p-1.5 text-white shadow-xl border-2 border-white dark:border-slate-900" />
+                                        </div>
+                                    )}
+                                    {status === 'orange' && (
+                                        <div className="absolute -top-3 -right-3 animate-bounce">
+                                            <FireIcon className="w-8 h-8 bg-amber-500 rounded-full p-1.5 text-white shadow-xl border-2 border-white dark:border-slate-900" />
                                         </div>
                                     )}
                                     {status === 'yellow' && (
@@ -470,13 +608,24 @@ export default function WaiterBoard() {
                                                 <span className="font-bold text-slate-900 dark:text-white text-sm">
                                                     Час: {new Date(o.createdAt).toLocaleTimeString()}
                                                 </span>
-                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                                    o.status === 'NEW' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' :
-                                                    o.status === 'PREPARING' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
-                                                    o.status === 'READY' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300' : 'bg-slate-200'
-                                                }`}>
-                                                    {o.status}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                        o.status === 'NEW' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' :
+                                                        o.status === 'PREPARING' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
+                                                        o.status === 'READY' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 animate-pulse' : 'bg-slate-200'
+                                                    }`}>
+                                                        {o.status === 'NEW' ? 'Нове' : o.status === 'PREPARING' ? 'Готується' : o.status === 'READY' ? '🍳 Готово до видачі' : o.status}
+                                                    </span>
+                                                    {o.status === 'READY' && (
+                                                        <button
+                                                            onClick={() => updateOrderStatus(o.id, 'PAID')}
+                                                            className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-xl text-xs font-bold shadow transition-all active:scale-95"
+                                                            title="Позначити як видане гостям і закрити"
+                                                        >
+                                                            <CheckCircleIcon className="w-4 h-4"/> Видано
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                             <ul className="space-y-2 mb-3">
                                                 {o.items.map((i: any, idx: number) => {

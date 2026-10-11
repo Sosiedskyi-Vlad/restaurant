@@ -137,7 +137,6 @@ export default function AdminTables() {
                                 className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 p-2 rounded-xl text-sm font-medium"
                             >
                                 <option value="SQUARE">Квадратний</option>
-                                <option value="ROUND">Круглий</option>
                                 <option value="RECTANGLE">Прямокутний</option>
                             </select>
                         </div>
@@ -465,7 +464,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 ...prev,
                 [selectedTableId]: {
                     ...current,
-                    rotation: (current.rotation + 45) % 360
+                    rotation: (current.rotation + 90) % 360
                 }
             };
         });
@@ -694,20 +693,14 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                             {/* Форма */}
                             <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl border border-indigo-200 dark:border-slate-700 text-xs font-semibold">
                                 <button 
-                                    onClick={() => setTableShape('ROUND')}
-                                    className={`px-2.5 py-1 rounded-lg transition-colors ${selectedTableData.shape === 'ROUND' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
-                                >
-                                    Круглий
-                                </button>
-                                <button 
                                     onClick={() => setTableShape('SQUARE')}
-                                    className={`px-2.5 py-1 rounded-lg transition-colors ${selectedTableData.shape === 'SQUARE' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
+                                    className={`px-3 py-1 rounded-lg transition-colors ${selectedTableData.shape !== 'RECTANGLE' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
                                 >
                                     Квадрат
                                 </button>
                                 <button 
                                     onClick={() => setTableShape('RECTANGLE')}
-                                    className={`px-2.5 py-1 rounded-lg transition-colors ${selectedTableData.shape === 'RECTANGLE' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
+                                    className={`px-3 py-1 rounded-lg transition-colors ${selectedTableData.shape === 'RECTANGLE' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
                                 >
                                     Прямокутник
                                 </button>
@@ -721,14 +714,16 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 <button onClick={() => changeSeats(1)} className="px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400">+</button>
                             </div>
 
-                            {/* Обертання */}
+                            {/* Обертання / Орієнтація */}
                             <button 
                                 onClick={rotateSelectedTable}
                                 className="flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-300 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-slate-700 text-xs font-bold transition-colors"
-                                title="Повернути на 45°"
+                                title="Змінити орієнтацію на 90°"
                             >
                                 <ArrowPathIcon className="w-4 h-4"/>
-                                {selectedTableData.rotation || 0}°
+                                {selectedTableData.shape === 'RECTANGLE' 
+                                    ? ((selectedTableData.rotation % 180 === 90 || selectedTableData.rotation % 180 === 270) ? '↕ Вертикально' : '↔ Горизонтально') 
+                                    : `${selectedTableData.rotation || 0}°`}
                             </button>
 
                             {/* Перемістити в іншу зону */}
@@ -840,17 +835,46 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                         setSelectedElementId(null);
                     }
                 }}
-                className="w-full aspect-[4/3] md:aspect-[16/9] bg-slate-900 rounded-3xl relative overflow-hidden border-4 border-slate-800 shadow-2xl cursor-default select-none"
-                style={{ 
-                    touchAction: 'none',
-                    backgroundImage: `
-                        radial-gradient(circle, rgba(255, 255, 255, 0.08) 1.5px, transparent 1.5px),
-                        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
-                    `,
-                    backgroundSize: '30px 30px, 60px 60px, 60px 60px'
-                }}
+                className="w-full aspect-[4/3] md:aspect-[16/9] rounded-3xl relative overflow-hidden shadow-2xl cursor-default select-none"
+                style={{ touchAction: 'none' }}
             >
+                {/* SVG Blueprint Floor natively masked inside SVG (100% Safari, Chrome & Firefox support) */}
+                <svg className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden pointer-events-none" width="100%" height="100%">
+                    <defs>
+                        <mask id={`admin-hall-mask-${currentZone}`} maskContentUnits="objectBoundingBox">
+                            <rect x="0" y="0" width="1" height="1" fill="white" />
+                            {elements.filter(el => (el.zone || 'MAIN') === currentZone && el.type === 'VOID').map(el => (
+                                <rect
+                                    key={el.id}
+                                    x={(el.positionX - el.width / 2) / 100}
+                                    y={(el.positionY - el.height / 2) / 100}
+                                    width={el.width / 100}
+                                    height={el.height / 100}
+                                    rx="0.02"
+                                    ry="0.035"
+                                    fill="black"
+                                    transform={el.rotation ? `rotate(${el.rotation} ${el.positionX / 100} ${el.positionY / 100})` : undefined}
+                                />
+                            ))}
+                        </mask>
+                        <pattern id={`admin-grid-dots-${currentZone}`} width="30" height="30" patternUnits="userSpaceOnUse">
+                            <circle cx="2" cy="2" r="1.5" fill="rgba(255, 255, 255, 0.08)" />
+                        </pattern>
+                    </defs>
+                    <rect 
+                        width="100%" 
+                        height="100%" 
+                        fill="#020617" 
+                        mask={elements.some(el => (el.zone || 'MAIN') === currentZone && el.type === 'VOID') ? `url(#admin-hall-mask-${currentZone})` : undefined} 
+                    />
+                    <rect 
+                        width="100%" 
+                        height="100%" 
+                        fill={`url(#admin-grid-dots-${currentZone})`} 
+                        mask={elements.some(el => (el.zone || 'MAIN') === currentZone && el.type === 'VOID') ? `url(#admin-hall-mask-${currentZone})` : undefined} 
+                    />
+                </svg>
+
                 {/* Zone Label Watermark */}
                 <div className="absolute top-4 left-6 text-slate-700 text-2xl font-black tracking-widest uppercase pointer-events-none select-none">
                     {ZONES.find(z => z.id === currentZone)?.name}
@@ -872,10 +896,10 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                     setSelectedElementId(el.id);
                                     setSelectedTableId(null);
                                 }}
-                                className={`absolute bg-slate-50 dark:bg-slate-900 border-4 border-slate-700 dark:border-slate-800 rounded-2xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-transform ${
+                                className={`absolute border-2 border-dashed rounded-2xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-all ${
                                     isSelected 
-                                        ? 'ring-4 ring-amber-400 z-30 scale-102 border-amber-400' 
-                                        : 'z-15 hover:border-slate-500'
+                                        ? 'border-amber-400 bg-amber-500/15 ring-4 ring-amber-400/40 z-30 scale-102' 
+                                        : 'border-slate-500/50 bg-slate-950/70 hover:border-amber-400/60 z-15'
                                 }`}
                                 style={{
                                     left: `${el.positionX}%`,
@@ -885,17 +909,12 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                     transform: `translate(-50%, -50%) rotate(${rot}deg)`,
                                     touchAction: 'none'
                                 }}
-                                title="Зріз площі (Перетягніть мишкою, щоб відсікти частину приміщення)"
+                                title="Зріз площі (Перетягніть мишкою або змініть розміри в панелі)"
                             >
-                                {isSelected ? (
-                                    <div className="text-[11px] font-bold text-amber-500 dark:text-amber-400 select-none bg-slate-900/90 dark:bg-slate-800/90 px-2.5 py-1 rounded-xl shadow-md border border-amber-500/30">
-                                        ⬛ Зріз {Math.round(el.width)}×{Math.round(el.height)}%
-                                    </div>
-                                ) : (
-                                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-600 select-none tracking-widest uppercase opacity-40">
-                                        поза залом
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-xs text-amber-300 font-bold text-[11px] select-none pointer-events-none border border-amber-500/30">
+                                    <span>✂️</span>
+                                    <span>Зріз {Math.round(el.width)}×{Math.round(el.height)}%</span>
+                                </div>
                             </div>
                         );
                     }
@@ -943,11 +962,19 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 transform: `translate(-50%, -50%) rotate(${rot}deg)`,
                                 touchAction: 'none'
                             }}
+                            title={el.name}
                         >
-                            {icon && <span className="text-sm select-none">{icon}</span>}
-                            <span className="font-bold text-[11px] select-none tracking-wide truncate max-w-[85%] opacity-90">
-                                {el.name}
-                            </span>
+                            {el.type !== 'WALL' && (
+                                <div 
+                                    className="flex items-center justify-center gap-1.5 max-w-full px-1"
+                                    style={{ transform: `rotate(${-rot}deg)` }}
+                                >
+                                    {icon && <span className="text-sm select-none">{icon}</span>}
+                                    <span className="font-bold text-[11px] select-none tracking-wide truncate opacity-90">
+                                        {el.name}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -958,15 +985,16 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                     if (!pos) return null;
 
                     const isSelected = selectedTableId === t.id;
-                    const shape = pos.shape || 'SQUARE';
+                    const shape = (pos.shape === 'ROUND' ? 'SQUARE' : pos.shape) || 'SQUARE';
                     const seats = pos.seats || 4;
                     const rot = pos.rotation || 0;
+                    const isVertical = shape === 'RECTANGLE' && (rot % 180 === 90 || rot % 180 === 270);
 
-                    let shapeClasses = 'w-16 h-16 sm:w-20 sm:h-20 rounded-2xl';
-                    if (shape === 'ROUND') {
-                        shapeClasses = 'w-16 h-16 sm:w-20 sm:h-20 rounded-full';
-                    } else if (shape === 'RECTANGLE') {
-                        shapeClasses = 'w-24 h-14 sm:w-28 sm:h-16 rounded-2xl';
+                    let shapeClasses = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl';
+                    if (shape === 'RECTANGLE') {
+                        shapeClasses = isVertical 
+                            ? 'w-20 h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 rounded-2xl'
+                            : 'w-28 h-20 sm:w-36 sm:h-24 md:w-40 md:h-28 rounded-2xl';
                     }
 
                     return (
@@ -978,23 +1006,33 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 setSelectedTableId(t.id);
                                 setSelectedElementId(null);
                             }}
-                            className={`absolute bg-indigo-600 text-white flex flex-col items-center justify-center shadow-xl cursor-grab active:cursor-grabbing border-2 border-indigo-400 transition-transform ${shapeClasses} ${
-                                isSelected ? 'ring-4 ring-yellow-400 z-40 scale-110 shadow-indigo-500/50' : 'hover:scale-105 z-20'
+                            className={`absolute bg-indigo-600 text-white flex flex-col justify-between items-center p-2 shadow-xl cursor-grab active:cursor-grabbing border-2 border-indigo-400 transition-transform ${shapeClasses} ${
+                                isSelected ? 'ring-4 ring-yellow-400 z-40 scale-105 shadow-indigo-500/50' : 'hover:scale-102 z-20'
                             }`}
                             style={{
                                 left: `${pos.x}%`,
                                 top: `${pos.y}%`,
-                                transform: `translate(-50%, -50%) rotate(${rot}deg)`,
+                                transform: 'translate(-50%, -50%)',
                                 touchAction: 'none'
                             }}
-                            title={`Стіл ${t.number} (${seats} місць)`}
+                            title={`Стіл №${t.number} (${seats} місць)`}
                         >
-                            <span className="text-xl sm:text-2xl font-black leading-none select-none">
-                                {t.number}
-                            </span>
-                            <span className="text-[10px] font-bold opacity-80 mt-0.5 select-none">
-                                👥 {seats}
-                            </span>
+                            <div className="w-full flex items-center justify-between px-0.5 leading-none select-none">
+                                <span className="text-sm sm:text-base md:text-lg font-black tracking-tight">
+                                    №{t.number}
+                                </span>
+                                <span className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-black/25 text-white">
+                                    👥 {seats}
+                                </span>
+                            </div>
+
+                            <div className="text-[10px] sm:text-[11px] font-bold text-indigo-100 opacity-90 select-none my-auto">
+                                {shape === 'RECTANGLE' ? (isVertical ? 'Вертикальний' : 'Горизонтальний') : 'Квадрат'}
+                            </div>
+
+                            <div className="text-[9px] text-indigo-200/80 font-mono font-medium select-none">
+                                {Math.round(pos.x)}%, {Math.round(pos.y)}%
+                            </div>
                         </div>
                     );
                 })}
