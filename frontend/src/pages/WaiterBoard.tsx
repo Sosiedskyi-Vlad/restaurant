@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../api';
 import { getStompClient, onWsConnect } from '../ws';
 import { 
@@ -73,12 +74,25 @@ export default function WaiterBoard() {
         }
     };
 
+    const updateItemStatus = async (orderId: string, itemId: string, target: string) => {
+        try {
+            await api.patch(`/orders/${orderId}/items/${itemId}/status`, { status: target });
+            loadData();
+            window.dispatchEvent(new Event('refresh-badges'));
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Помилка оновлення статусу страви');
+        }
+    };
+
     const getTableStatus = (tableNum: number) => {
         const tableCalls = calls.filter(c => c.tableNumber === tableNum);
         const hasWaiterCall = tableCalls.some(c => c.type === 'WAITER');
         const hasBillCall = tableCalls.some(c => c.type === 'BILL');
         const tableOrders = orders.filter(o => o.tableNumber === tableNum);
-        const hasReadyFood = tableOrders.some(o => o.status === 'READY');
+        const readyItemsCount = tableOrders.reduce((sum, o) => 
+            sum + (o.items?.filter((i: any) => i.status === 'READY').length || 0), 0
+        );
+        const hasReadyFood = tableOrders.some(o => o.status === 'READY') || readyItemsCount > 0;
 
         if (hasWaiterCall) return 'red';
         if (hasBillCall) return 'blue';
@@ -165,7 +179,7 @@ export default function WaiterBoard() {
                                 return (
                                     <button
                                         key={z.id}
-                                        onClick={() => setSelectedTable(null) || setCurrentZone(z.id)}
+                                        onClick={() => { setSelectedTable(null); setCurrentZone(z.id); }}
                                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
                                             currentZone === z.id
                                                 ? 'bg-indigo-600 text-white shadow-md'
@@ -206,7 +220,7 @@ export default function WaiterBoard() {
 
                     {/* Interactive 2D Map Canvas */}
                     <div className="relative w-full aspect-[4/3] md:aspect-[16/9] rounded-3xl select-none shadow-2xl">
-                        {/* SVG Blueprint Floor natively masked inside SVG (100% support for Safari, Chrome & Firefox) */}
+                        {/* SVG Blueprint Floor natively masked inside SVG */}
                         <svg className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden pointer-events-none" width="100%" height="100%">
                             <defs>
                                 <mask id={`hall-mask-${currentZone}`} maskContentUnits="objectBoundingBox">
@@ -229,14 +243,12 @@ export default function WaiterBoard() {
                                     <circle cx="2" cy="2" r="1.5" fill="rgba(255, 255, 255, 0.08)" />
                                 </pattern>
                             </defs>
-                            {/* Base dark floor */}
                             <rect 
                                 width="100%" 
                                 height="100%" 
                                 fill="#020617" 
                                 mask={zoneElements.some(el => el.type === 'VOID') ? `url(#hall-mask-${currentZone})` : undefined} 
                             />
-                            {/* Blueprint grid dots */}
                             <rect 
                                 width="100%" 
                                 height="100%" 
@@ -250,7 +262,7 @@ export default function WaiterBoard() {
                             {ZONES.find(z => z.id === currentZone)?.name}
                         </div>
 
-                        {/* Render Interior Decor & Walls (VOID cutouts are physically masked, no fake boxes!) */}
+                        {/* Render Interior Decor & Walls */}
                         {zoneElements.filter(el => el.type !== 'VOID').map(el => {
                             const rot = el.rotation || 0;
 
@@ -319,6 +331,9 @@ export default function WaiterBoard() {
                             const tOrders = orders.filter(o => o.tableNumber === t.number);
                             const totalBill = tOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
                             const totalDishesCount = tOrders.reduce((sum, o) => sum + o.items.reduce((iSum: number, item: any) => iSum + item.quantity, 0), 0);
+                            const readyItemsCount = tOrders.reduce((sum, o) => 
+                                sum + (o.items?.filter((item: any) => item.status === 'READY').length || 0), 0
+                            );
 
                             // Elapsed order time
                             const earliestOrderTime = tOrders.length > 0 
@@ -395,7 +410,7 @@ export default function WaiterBoard() {
                                                     🍳 ГОТОВО!
                                                 </span>
                                                 <span className="text-[10px] font-bold mt-0.5">
-                                                    {totalBill > 0 ? `${totalBill} ₴` : 'Видача'}
+                                                    {readyItemsCount > 0 ? `${readyItemsCount} ${readyItemsCount === 1 ? 'страва' : readyItemsCount < 5 ? 'страви' : 'страв'}` : (totalBill > 0 ? `${totalBill} ₴` : 'Видача')}
                                                 </span>
                                             </div>
                                         ) : status === 'yellow' ? (
@@ -432,7 +447,7 @@ export default function WaiterBoard() {
                                             )
                                         ) : status === 'orange' ? (
                                             <span className="text-[9px] sm:text-[10px] font-black text-amber-100 uppercase">
-                                                Забрати страву
+                                                {readyItemsCount > 0 ? `Забрати: ${readyItemsCount}` : 'Забрати страву'}
                                             </span>
                                         ) : status === 'yellow' ? (
                                             <span className="text-[9px] sm:text-[10px] font-bold opacity-85 truncate">
@@ -528,9 +543,15 @@ export default function WaiterBoard() {
             )}
 
             {/* Modal for Table Details */}
-            {selectedTable && (
-                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700">
+            {selectedTable && createPortal(
+                <div 
+                    className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setSelectedTable(null)}
+                >
+                    <div 
+                        className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700"
+                        onClick={e => e.stopPropagation()}
+                    >
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h2 className="text-3xl font-black text-slate-900 dark:text-white">
@@ -602,7 +623,11 @@ export default function WaiterBoard() {
                                 </p>
                             ) : (
                                 <div className="space-y-4">
-                                    {tableOrders.map(o => (
+                                    {tableOrders.map(o => {
+                                        const allItemsServed = o.items && o.items.length > 0 && o.items.every((i: any) => i.status === 'SERVED');
+                                        const canCloseOrder = o.status === 'READY' || allItemsServed;
+
+                                        return (
                                         <div key={o.id} className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
                                             <div className="flex justify-between items-center mb-3">
                                                 <span className="font-bold text-slate-900 dark:text-white text-sm">
@@ -616,13 +641,13 @@ export default function WaiterBoard() {
                                                     }`}>
                                                         {o.status === 'NEW' ? 'Нове' : o.status === 'PREPARING' ? 'Готується' : o.status === 'READY' ? '🍳 Готово до видачі' : o.status}
                                                     </span>
-                                                    {o.status === 'READY' && (
+                                                    {canCloseOrder && (
                                                         <button
                                                             onClick={() => updateOrderStatus(o.id, 'PAID')}
                                                             className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-xl text-xs font-bold shadow transition-all active:scale-95"
                                                             title="Позначити як видане гостям і закрити"
                                                         >
-                                                            <CheckCircleIcon className="w-4 h-4"/> Видано
+                                                            <CheckCircleIcon className="w-4 h-4"/> Розрахувати/Видано
                                                         </button>
                                                     )}
                                                 </div>
@@ -637,17 +662,54 @@ export default function WaiterBoard() {
                                                             if (optList.length > 0) optsDisplay = '(' + optList.join(', ') + ')';
                                                         } catch (e) {}
                                                     }
+                                                    const isItemReady = i.status === 'READY';
+                                                    const isItemServed = i.status === 'SERVED';
+                                                    const isItemPreparing = i.status === 'PREPARING';
+
                                                     return (
-                                                        <li key={idx} className="flex justify-between text-sm">
-                                                            <div className="flex-1">
-                                                                <span className="font-bold">{i.quantity}x</span> {i.name}
+                                                        <li key={idx} className={`p-2 rounded-xl flex justify-between items-center text-sm border transition-all ${
+                                                            isItemReady ? 'bg-amber-500/10 border-amber-500/40' :
+                                                            isItemServed ? 'bg-slate-100/50 dark:bg-slate-800/40 border-transparent opacity-60' :
+                                                            'border-transparent bg-white/40 dark:bg-slate-800/20'
+                                                        }`}>
+                                                            <div className="flex-1 min-w-0 pr-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-bold shrink-0">{i.quantity}x</span> 
+                                                                    <span className={`truncate ${isItemServed ? 'line-through text-slate-400 dark:text-slate-500' : 'font-medium'}`}>{i.name}</span>
+                                                                </div>
                                                                 {optsDisplay && (
-                                                                    <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium ml-5">
+                                                                    <div className="text-xs text-indigo-500 dark:text-indigo-400 font-medium ml-5 truncate">
                                                                         {optsDisplay}
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div className="text-slate-500 font-medium">{i.priceAtTime} ₴</div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <div className="text-slate-500 font-medium">{i.priceAtTime} ₴</div>
+                                                                {isItemReady && (
+                                                                    <button
+                                                                        onClick={() => updateItemStatus(o.id, i.id, 'SERVED')}
+                                                                        className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow animate-pulse active:scale-95 transition-all"
+                                                                        title="Позначити, що страву винесено гостю"
+                                                                    >
+                                                                        <CheckIcon className="w-3.5 h-3.5 stroke-2"/> Винести
+                                                                    </button>
+                                                                )}
+                                                                {isItemServed && (
+                                                                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+                                                                        ✓ Подано
+                                                                    </span>
+                                                                )}
+                                                                {isItemPreparing && (
+                                                                    <span className="text-[11px] font-bold text-amber-700 bg-amber-100/80 dark:bg-amber-950/60 dark:text-amber-400 px-2 py-0.5 rounded-md">
+                                                                        ⏳ Готується
+                                                                    </span>
+                                                                )}
+                                                                {(!i.status || i.status === 'NEW') && (
+                                                                    <span className="text-[11px] font-bold text-blue-600 bg-blue-100/80 dark:bg-blue-950/60 dark:text-blue-400 px-2 py-0.5 rounded-md">
+                                                                        Черга
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </li>
                                                     );
                                                 })}
@@ -656,13 +718,15 @@ export default function WaiterBoard() {
                                                 {o.total} ₴
                                             </div>
                                         </div>
-                                    ))}
+                                    );
+                                    })}
                                 </div>
                             )}
                         </div>
 
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

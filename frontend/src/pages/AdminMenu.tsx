@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../api';
 import { PhotoIcon, PencilIcon, PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -204,9 +205,10 @@ export default function AdminMenu() {
             </div>
 
             {/* Modal for editing */}
-            {editingItem && (
-                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700">
+            {editingItem && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setEditingItem(null)}>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                    
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Редагування: {editingItem.name}</h2>
                             <button onClick={() => setEditingItem(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full transition-colors">
@@ -314,7 +316,8 @@ export default function AdminMenu() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

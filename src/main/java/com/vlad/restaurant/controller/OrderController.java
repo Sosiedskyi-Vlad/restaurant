@@ -3,6 +3,8 @@ package com.vlad.restaurant.controller;
 import com.vlad.restaurant.dto.OrderCreateRequest;
 import com.vlad.restaurant.dto.OrderResponse;
 import com.vlad.restaurant.dto.StatusUpdateRequest;
+import com.vlad.restaurant.dto.ItemStatusUpdateRequest;
+import com.vlad.restaurant.dto.KdsMetricsResponse;
 import com.vlad.restaurant.entity.OrderStatus;
 import com.vlad.restaurant.security.GuestPrincipal;
 import com.vlad.restaurant.service.OrderService;
@@ -60,6 +62,23 @@ public class OrderController {
             Authentication auth
     ) {
         return orderService.updateStatus(id, request.status(), auth);
+    }
+
+    @PatchMapping("/{orderId}/items/{itemId}/status")
+    @PreAuthorize("hasAnyRole('COOK', 'WAITER', 'ADMIN')")
+    public OrderResponse updateItemStatus(
+            @PathVariable UUID orderId,
+            @PathVariable UUID itemId,
+            @Valid @RequestBody ItemStatusUpdateRequest request,
+            Authentication auth
+    ) {
+        return orderService.updateItemStatus(orderId, itemId, request.status(), auth);
+    }
+
+    @GetMapping("/kds-metrics")
+    @PreAuthorize("hasAnyRole('COOK', 'WAITER', 'ADMIN')")
+    public KdsMetricsResponse getKdsMetrics() {
+        return orderService.getKdsMetrics();
     }
 
     // ---------- Спільне ----------

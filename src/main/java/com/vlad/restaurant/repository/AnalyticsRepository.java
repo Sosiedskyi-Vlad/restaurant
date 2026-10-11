@@ -28,6 +28,14 @@ public interface AnalyticsRepository extends JpaRepository<Order, UUID> {
     long paidOrders(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     @Query("""
+            select coalesce(sum(i.quantity), 0)
+            from OrderItem i join i.order o
+            where (o.paid = true and o.paidAt >= :from and o.paidAt < :to)
+               or (o.readyAt is not null and o.readyAt >= :from and o.readyAt < :to)
+            """)
+    long totalDishesCooked(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("""
             select new com.vlad.restaurant.dto.AnalyticsResponse$TopItem(
                 m.id, m.name, sum(i.quantity), sum(i.priceAtTime * i.quantity))
             from OrderItem i join i.order o join i.menuItem m
@@ -47,7 +55,7 @@ public interface AnalyticsRepository extends JpaRepository<Order, UUID> {
             """, nativeQuery = true)
     Double avgCookingSeconds(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
-    // Рядки: [дата (java.sql.Date), виручка, кількість замовлень]
+    // Рядки: [дата (java.sql.Date), выручка, кількість замовлень]
     @Query(value = """
             select cast(o.paid_at as date) as day,
                    sum(i.price_at_time * i.quantity) as revenue,
@@ -58,6 +66,7 @@ public interface AnalyticsRepository extends JpaRepository<Order, UUID> {
             order by day
             """, nativeQuery = true)
     List<Object[]> revenueByDay(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     // Різниця між створенням і вирішенням виклику, у секундах
     @Query(value = """
             select avg(extract(epoch from (s.resolved_at - s.created_at)))

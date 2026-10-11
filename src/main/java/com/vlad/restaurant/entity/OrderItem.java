@@ -33,4 +33,8 @@ public class OrderItem {
 
     @Column(name = "selected_options", columnDefinition = "TEXT")
     private String selectedOptions;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50, nullable = false)
+    private OrderItemStatus status = OrderItemStatus.NEW;
 }

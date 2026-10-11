@@ -204,19 +204,45 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                             </span>
                             <span className="text-xl font-bold tracking-tight text-slate-900">{o.total} ₴</span>
                         </div>
-                        <div className="text-sm text-slate-500 mb-5 space-y-3">
+                        <div className="text-sm text-slate-500 mb-5 space-y-2.5">
                             {o.items.map((i: any, idx: number) => {
                                 const opts = formatOptions(i.selectedOptions);
+                                const isItemReady = i.status === "READY";
+                                const isItemServed = i.status === "SERVED";
+                                const isItemPreparing = i.status === "PREPARING";
+
                                 return (
-                                <div key={idx} className="flex justify-between items-start">
-                                    <div className="flex gap-2">
-                                        <span className="text-slate-400 font-medium whitespace-nowrap">{i.quantity}×</span> 
-                                        <div>
-                                            <div className="text-slate-700 font-medium leading-tight">{i.name}</div>
-                                            {opts && <div className="text-xs text-slate-400 mt-0.5">{opts}</div>}
+                                <div key={idx} className="flex justify-between items-center p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100">
+                                    <div className="flex gap-2.5 items-center min-w-0 pr-2">
+                                        <span className="text-slate-600 font-bold text-xs bg-white px-2 py-1 rounded-lg shadow-2xs border border-slate-200/60 whitespace-nowrap">{i.quantity}×</span> 
+                                        <div className="min-w-0">
+                                            <div className={`font-semibold leading-tight truncate ${isItemServed ? "line-through text-slate-400" : "text-slate-800"}`}>{i.name}</div>
+                                            {opts && <div className="text-xs text-slate-400 mt-0.5 truncate">{opts}</div>}
                                         </div>
                                     </div>
-                                    <span className="font-medium whitespace-nowrap ml-2">{i.priceAtTime * i.quantity} ₴</span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {isItemReady && (
+                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 animate-pulse">
+                                                🍳 Несуть вам!
+                                            </span>
+                                        )}
+                                        {isItemServed && (
+                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full">
+                                                ✓ Подано
+                                            </span>
+                                        )}
+                                        {isItemPreparing && (
+                                            <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                                                ⏳ Готується
+                                            </span>
+                                        )}
+                                        {(!i.status || i.status === "NEW") && (
+                                            <span className="text-[10px] font-medium text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                                                В черзі
+                                            </span>
+                                        )}
+                                        <span className="font-bold text-slate-700 whitespace-nowrap text-xs ml-1">{i.priceAtTime * i.quantity} ₴</span>
+                                    </div>
                                 </div>
                             )})}
                         </div>
