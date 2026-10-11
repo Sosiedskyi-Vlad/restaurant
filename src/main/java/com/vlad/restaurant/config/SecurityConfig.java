@@ -30,6 +30,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/restaurant-info").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/menu/**").permitAll() // публічний перегляд меню та категорій
                         .requestMatchers(HttpMethod.POST, "/api/v1/payments/liqpay/callback").permitAll() // підпис перевіряє сервіс
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()

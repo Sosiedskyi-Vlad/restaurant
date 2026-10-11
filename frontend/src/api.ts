@@ -12,3 +12,21 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            const isStaff = window.location.pathname.startsWith('/staff');
+            if (isStaff) {
+                localStorage.removeItem('staff_token');
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
+            } else {
+                localStorage.removeItem('guest_token');
+            }
+        }
+        return Promise.reject(error);
+    }
+);

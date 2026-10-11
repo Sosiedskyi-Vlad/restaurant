@@ -1,13 +1,21 @@
+import LeafletMap from './components/LeafletMap';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './api';
 import { getStompClient, onWsConnect } from './ws';
-import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon, WifiIcon, ClockIcon, MapPinIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
 
 export default function GuestApp() {
     const tableNum = localStorage.getItem('guest_table_num') || '?';
+    const [restaurantInfo, setRestaurantInfo] = useState<any>(null);
+
+    useEffect(() => {
+        api.get('/restaurant-info')
+            .then(res => setRestaurantInfo(res.data))
+            .catch(() => {});
+    }, []);
     
     return (
         <div className="min-h-screen pb-32 max-w-md mx-auto bg-slate-50 relative shadow-2xl overflow-hidden sm:rounded-[3rem] sm:my-10 sm:border-[8px] sm:border-slate-900">
@@ -21,6 +29,7 @@ export default function GuestApp() {
             <main className="p-6">
                 <GuestFlow />
             </main>
+            <Footer info={restaurantInfo} />
         </div>
     );
 }
@@ -596,5 +605,125 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
                 </div>
             )}
         </div>
+    );
+}
+
+
+function Footer({ info }: { info: any }) {
+    const name = info?.name || 'Ресторан «RestoFlow»';
+    const description = info?.description || 'Авторська кухня, затишна атмосфера та швидкий сервіс';
+    const wifiSsid = info?.wifiSsid || 'Resto_Guest';
+    const wifiPassword = info?.wifiPassword || 'resto2026';
+    const workingHours = info?.workingHours || 'Пн–Нд: 10:00 – 22:00';
+    const address = info?.address || 'вул. Володимирська, 24';
+    const phone = info?.phone || '+380442345678';
+    const phoneLink = 'tel:' + phone.replace(/[^0-9+]/g, '');
+    const allergensNote = info?.allergensNote || 'Якщо у вас є харчова алергія або особливі побажання до інгредієнтів, будь ласка, повідомте про це офіціанта.';
+
+    return (
+        <footer className="mt-8 px-6 pt-8 pb-12 bg-white border-t border-slate-200/80 text-slate-600 rounded-t-[2.5rem] shadow-sm">
+            {/* Логотип закладу та назва */}
+            <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 font-black text-xl mb-3 shadow-sm border border-indigo-100">
+                    {name.charAt(0) || 'R'}
+                </div>
+                <h2 className="text-xl font-black tracking-tight text-slate-900">{name}</h2>
+                {description && <p className="text-xs text-slate-400 mt-1">{description}</p>}
+            </div>
+
+            {/* Швидкі картки з інформацією */}
+            <div className="space-y-3 mb-6">
+                {/* Wi-Fi плашка */}
+                {wifiSsid && (
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-100/70 text-indigo-600 rounded-xl">
+                                <WifiIcon className="w-5 h-5" />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-xs text-slate-400 font-medium">Wi-Fi для гостей</div>
+                                <div className="text-sm font-bold text-slate-800">{wifiSsid}</div>
+                            </div>
+                        </div>
+                        {wifiPassword && (
+                            <span className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 shadow-sm">
+                                {wifiPassword}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {/* Графік роботи */}
+                {workingHours && (
+                    <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="p-2 bg-emerald-100/70 text-emerald-600 rounded-xl">
+                            <ClockIcon className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                            <div className="text-xs text-slate-400 font-medium">Графік роботи</div>
+                            <div className="text-sm font-semibold text-slate-800">{workingHours}</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Адреса та контакт */}
+                {(address || phone) && (
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-3 text-left">
+                            <div className="p-2 bg-amber-100/70 text-amber-600 rounded-xl">
+                                <MapPinIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <div className="text-xs text-slate-400 font-medium">Локація та бронь</div>
+                                <div className="text-sm font-semibold text-slate-800">{address || phone}</div>
+                            </div>
+                        </div>
+                        {phone && (
+                            <a href={phoneLink} className="p-2 text-slate-500 hover:text-indigo-600 transition-colors" title="Зателефонувати">
+                                <PhoneIcon className="w-5 h-5" />
+                            </a>
+                        )}
+                    </div>
+                )}
+
+                {/* Інтерактивна карта Leaflet */}
+                <div className="pt-2">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Як нас знайти</span>
+                        <span className="text-xs text-indigo-600 font-medium truncate max-w-[200px]">{address}</span>
+                    </div>
+                    <LeafletMap 
+                        lat={info?.latitude || 50.4485} 
+                        lng={info?.longitude || 30.5186} 
+                        title={name} 
+                        address={address} 
+                        readOnly={true} 
+                        height="200px" 
+                    />
+                </div>
+            </div>
+
+            {/* Інформація про алергени */}
+            {allergensNote && (
+                <div className="p-3.5 bg-amber-50/70 rounded-2xl border border-amber-100 mb-6 text-left">
+                    <div className="flex items-start gap-2.5">
+                        <InformationCircleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-900/80 leading-relaxed">
+                            {allergensNote}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Копірайт та інфо */}
+            <div className="text-center border-t border-slate-100 pt-5">
+                <p className="text-xs text-slate-400 font-medium">
+                    Безконтактне обслуговування • Оплата онлайн або карткою
+                </p>
+                <p className="text-[11px] text-slate-300 mt-1">
+                    © 2026 {name} • Смачного відпочинку! ✨
+                </p>
+            </div>
+        </footer>
     );
 }

@@ -99,7 +99,9 @@ public class TableService {
             repository.findById(req.id()).ifPresent(t -> {
                 t.setPositionX(req.positionX());
                 t.setPositionY(req.positionY());
+                repository.save(t);
             });
         }
+        repository.flush();
     }
 }

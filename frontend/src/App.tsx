@@ -27,10 +27,19 @@ export default function App() {
     } else if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        setRole(payload.role);
+        // Перевірка терміну дії токена (exp в секундах)
+        if (payload.exp && Date.now() >= payload.exp * 1000) {
+          localStorage.removeItem(tokenKey);
+          setRole(null);
+        } else {
+          setRole(payload.role);
+        }
       } catch (e) {
         localStorage.removeItem(tokenKey);
+        setRole(null);
       }
+    } else {
+      setRole(null);
     }
   }, [qr, window.location.pathname]);
 
@@ -43,9 +52,9 @@ export default function App() {
       {/* Якщо немає токена і ми не на сторінці логіну */}
       {!role && (
         <Route path="*" element={
-          <div className="p-8 text-center mt-20 text-slate-500 font-medium">
-            Відскануйте QR-код на столі або <br/><br/>
-            <button onClick={()=>navigate('/login')} className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg">
+          <div className="p-8 text-center mt-20 text-slate-500 font-medium max-w-sm mx-auto">
+            Відскануйте QR-код на столі для замовлення або <br/><br/>
+            <button onClick={()=>navigate('/login')} className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg w-full">
               Увійти як персонал
             </button>
           </div>
