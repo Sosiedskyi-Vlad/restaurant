@@ -3,11 +3,13 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './api';
 import { getStompClient, onWsConnect } from './ws';
+import ThemeToggle, { useTheme } from './ThemeToggle';
 import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon, WifiIcon, ClockIcon, MapPinIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
 
 export default function GuestApp() {
+    const { theme, toggle } = useTheme();
     const tableNum = localStorage.getItem('guest_table_num') || '?';
     const [restaurantInfo, setRestaurantInfo] = useState<any>(null);
 
@@ -18,13 +20,20 @@ export default function GuestApp() {
     }, []);
     
     return (
-        <div className="min-h-screen pb-32 max-w-md mx-auto bg-slate-50 relative shadow-2xl overflow-hidden sm:rounded-[3rem] sm:my-10 sm:border-[8px] sm:border-slate-900">
-            <header className="glass sticky top-0 z-30 px-6 py-4 flex justify-between items-center">
+        <div className="min-h-screen pb-32 max-w-md mx-auto bg-slate-50 dark:bg-slate-950 relative shadow-2xl overflow-hidden sm:rounded-[3rem] sm:my-10 sm:border-[8px] sm:border-slate-900 dark:sm:border-slate-800 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+            <header className="glass dark:bg-slate-900/80 dark:border-slate-800/60 sticky top-0 z-30 px-6 py-4 flex justify-between items-center transition-colors">
                 <div>
-                    <h1 className="text-sm font-semibold tracking-widest text-slate-500 uppercase">Стіл {tableNum}</h1>
-                    <div className="text-2xl font-bold tracking-tight text-slate-900">Ваше меню</div>
+                    <h1 className="text-xs sm:text-sm font-semibold tracking-widest text-slate-500 dark:text-slate-400 uppercase">Стіл {tableNum}</h1>
+                    <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Ваше меню</div>
                 </div>
-                <CallWaiterButton />
+                <div className="flex items-center gap-2">
+                    <ThemeToggle 
+                        theme={theme} 
+                        toggle={toggle} 
+                        className="p-2.5 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700/80 shadow-xs hover:scale-105 active:scale-95 transition-all" 
+                    />
+                    <CallWaiterButton />
+                </div>
             </header>
             <main className="p-6">
                 <GuestFlow />
@@ -73,7 +82,7 @@ function CallWaiterButton() {
 
     return (
         <>
-            <button onClick={call} className={`relative p-3 rounded-full transition-all duration-500 shadow-sm ${calling ? 'bg-amber-500 text-white scale-110 shadow-amber-500/40 ring-4 ring-amber-500/20' : 'bg-white text-slate-600 hover:bg-slate-100 hover:scale-105 ring-1 ring-slate-200'}`} title="Покликати офіціанта">
+            <button onClick={call} className={`relative p-3 rounded-full transition-all duration-500 shadow-xs ${calling ? 'bg-amber-500 text-white scale-110 shadow-amber-500/40 ring-4 ring-amber-500/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-105 ring-1 ring-slate-200 dark:ring-slate-700/80'}`} title="Покликати офіціанта">
                 <BellIcon className={`w-6 h-6 ${calling ? 'animate-wiggle' : ''}`} />
                 {calling && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full animate-ping"></span>}
                 {calling && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full"></span>}
@@ -145,7 +154,7 @@ function GuestFlow() {
             
             {count > 0 && (
                 <div className="fixed bottom-6 left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
-                    <button onClick={sendOrder} className="w-full glass-dark text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform">
+                    <button onClick={sendOrder} className="w-full glass-dark dark:bg-indigo-600/90 dark:border-indigo-400/30 text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform shadow-2xl">
                         <div className="flex justify-between items-center w-full">
                             <div className="flex items-center gap-3">
                                 <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
@@ -192,19 +201,25 @@ function ActiveOrders({ orders }: { orders: any[] }) {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 <FireIcon className="w-5 h-5 text-amber-500" /> Ваші замовлення
             </h2>
             <div className="space-y-4">
                 {orders.map(o => (
-                    <div key={o.id} className="p-5 rounded-3xl bg-white shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div key={o.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 shadow-xs border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-center mb-4">
-                            <span className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl ${o.status === 'NEW' ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100' : o.status === 'PREPARING' ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-100' : 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100'}`}>
+                            <span className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl ${
+                                o.status === 'NEW' 
+                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 ring-1 ring-blue-100 dark:ring-blue-900/40' 
+                                    : o.status === 'PREPARING' 
+                                        ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 ring-1 ring-amber-100 dark:ring-amber-900/40' 
+                                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-900/40'
+                            }`}>
                                 {o.status === 'NEW' ? 'В черзі' : o.status === 'PREPARING' ? 'Готується' : 'Готово'}
                             </span>
-                            <span className="text-xl font-bold tracking-tight text-slate-900">{o.total} ₴</span>
+                            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{o.total} ₴</span>
                         </div>
-                        <div className="text-sm text-slate-500 mb-5 space-y-2.5">
+                        <div className="text-sm text-slate-500 dark:text-slate-400 mb-5 space-y-2.5">
                             {o.items.map((i: any, idx: number) => {
                                 const opts = formatOptions(i.selectedOptions);
                                 const isItemReady = i.status === "READY";
@@ -212,55 +227,55 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                                 const isItemPreparing = i.status === "PREPARING";
 
                                 return (
-                                <div key={idx} className="flex justify-between items-center p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100">
+                                <div key={idx} className="flex justify-between items-center p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
                                     <div className="flex gap-2.5 items-center min-w-0 pr-2">
-                                        <span className="text-slate-600 font-bold text-xs bg-white px-2 py-1 rounded-lg shadow-2xs border border-slate-200/60 whitespace-nowrap">{i.quantity}×</span> 
+                                        <span className="text-slate-600 dark:text-slate-300 font-bold text-xs bg-white dark:bg-slate-700 px-2 py-1 rounded-lg shadow-2xs border border-slate-200/60 dark:border-slate-600 whitespace-nowrap">{i.quantity}×</span> 
                                         <div className="min-w-0">
-                                            <div className={`font-semibold leading-tight truncate ${isItemServed ? "line-through text-slate-400" : "text-slate-800"}`}>{i.name}</div>
-                                            {opts && <div className="text-xs text-slate-400 mt-0.5 truncate">{opts}</div>}
+                                            <div className={`font-semibold leading-tight truncate ${isItemServed ? "line-through text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-200"}`}>{i.name}</div>
+                                            {opts && <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">{opts}</div>}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         {isItemReady && (
-                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 animate-pulse">
+                                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-800 animate-pulse">
                                                 🍳 Несуть вам!
                                             </span>
                                         )}
                                         {isItemServed && (
-                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300/30">
                                                 ✓ Подано
                                             </span>
                                         )}
                                         {isItemPreparing && (
-                                            <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                                            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/40">
                                                 ⏳ Готується
                                             </span>
                                         )}
                                         {(!i.status || i.status === "NEW") && (
-                                            <span className="text-[10px] font-medium text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-200/60 dark:bg-slate-700 px-2 py-0.5 rounded-full">
                                                 В черзі
                                             </span>
                                         )}
-                                        <span className="font-bold text-slate-700 whitespace-nowrap text-xs ml-1">{i.priceAtTime * i.quantity} ₴</span>
+                                        <span className="font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap text-xs ml-1">{i.priceAtTime * i.quantity} ₴</span>
                                     </div>
                                 </div>
                             )})}
                         </div>
                         {!o.paid ? (
                             <div className="flex flex-col gap-2 mt-4">
-                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 transition-colors">
+                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-xs">
                                     <CreditCardIcon className="w-5 h-5" />
                                     {checkingOut === o.id ? 'Зачекайте...' : 'Оплатити онлайн (LiqPay)'}
                                 </button>
                                 <button onClick={() => {
                                     api.post('/service-calls', { type: 'BILL' }).then(() => alert('Офіціант зараз підійде з рахунком!'));
-                                }} className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-800 p-3.5 rounded-2xl font-semibold hover:bg-slate-200 transition-colors">
+                                }} className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                                     <BanknotesIcon className="w-5 h-5" />
                                     Готівкою або терміналом
                                 </button>
                             </div>
                         ) : (
-                            <div className="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 p-3.5 rounded-2xl font-bold ring-1 ring-emerald-200">
+                            <div className="w-full flex items-center justify-center gap-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 p-3.5 rounded-2xl font-bold ring-1 ring-emerald-200 dark:ring-emerald-800">
                                 <CheckCircleIcon className="w-5 h-5" /> Оплачено
                             </div>
                         )}
@@ -452,7 +467,7 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
             const vars = JSON.parse(variationsStr);
             return vars.map((group: any, idx: number) => (
                 <div key={idx} className="mb-5">
-                    <h3 className="font-bold text-slate-900 mb-2">{group.name}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2">{group.name}</h3>
                     <div className="flex flex-wrap gap-2">
                         {group.options.map((opt: any, optIdx: number) => {
                             const isSelected = (modalOptions[group.name] || []).includes(opt.name);
@@ -471,7 +486,11 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
                                 <button 
                                     key={optIdx}
                                     onClick={toggleOption}
-                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                                        isSelected 
+                                            ? 'bg-indigo-600 text-white shadow-md' 
+                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
                                 >
                                     {opt.name} 
                                     <span className={`ml-1 opacity-75 text-xs`}>
@@ -494,7 +513,11 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
                     <button 
                         key={cat} 
                         onClick={() => setActiveCategory(cat)}
-                        className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full font-bold transition-all ${activeCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'}`}
+                        className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full font-bold transition-all ${
+                            activeCategory === cat 
+                                ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-md' 
+                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                        }`}
                     >
                         {cat}
                     </button>
@@ -503,47 +526,47 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
 
             {/* Модалка з інформацією про продукт */}
             {selectedItem && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-0 animate-slideUpFade" onClick={() => setSelectedItem(null)}>
-                    <div className="bg-white w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 sm:p-0 animate-slideUpFade" onClick={() => setSelectedItem(null)}>
+                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
                         {selectedItem.imageUrl && <div className="shrink-0"><img src={selectedItem.imageUrl} className="w-full aspect-[4/3] object-cover" /></div>}
-                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10">✕</button>
+                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/70 transition-colors">✕</button>
                         
                         <div className="p-6 overflow-y-auto">
                             <div className="flex justify-between items-start mb-2">
-                                <h2 className="text-2xl font-bold text-slate-900 leading-tight pr-4">{selectedItem.name}</h2>
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight pr-4">{selectedItem.name}</h2>
                             </div>
                             
-                            <div className="flex items-center gap-2 mb-6 text-sm font-medium text-pink-500 bg-pink-50 w-fit px-3 py-1 rounded-full">
+                            <div className="flex items-center gap-2 mb-6 text-sm font-medium text-pink-500 bg-pink-50 dark:bg-pink-950/40 w-fit px-3 py-1 rounded-full">
                                 <HeartIcon className="w-4 h-4" /> 
                                 {(selectedItem.favoritesCount || 0)} людям подобається
                             </div>
 
                             {selectedItem.variations && (
-                                <div className="mb-6 pt-4 border-t border-slate-100">
+                                <div className="mb-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                                     {renderVariations(selectedItem.variations)}
                                 </div>
                             )}
 
                             {selectedItem.ingredients && (
                                 <div className="mb-4">
-                                    <h3 className="font-bold text-slate-900 mb-1">Склад:</h3>
-                                    <p className="text-slate-600 text-sm leading-relaxed">{selectedItem.ingredients}</p>
+                                    <h3 className="font-bold text-slate-900 dark:text-white mb-1">Склад:</h3>
+                                    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{selectedItem.ingredients}</p>
                                 </div>
                             )}
 
                             {selectedItem.allergens && (
-                                <div className="mb-6 bg-amber-50 p-3 rounded-2xl border border-amber-100">
-                                    <h3 className="font-bold text-amber-900 mb-1 text-sm">Алергени:</h3>
-                                    <p className="text-amber-700 text-sm">{selectedItem.allergens}</p>
+                                <div className="mb-6 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/40">
+                                    <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-1 text-sm">Алергени:</h3>
+                                    <p className="text-amber-700 dark:text-amber-400 text-sm">{selectedItem.allergens}</p>
                                 </div>
                             )}
 
                             {!selectedItem.ingredients && !selectedItem.allergens && !selectedItem.variations && (
-                                <p className="text-slate-500 mb-6 italic">Детальна інформація відсутня</p>
+                                <p className="text-slate-500 dark:text-slate-400 mb-6 italic">Детальна інформація відсутня</p>
                             )}
 
-                            <div className="pt-4 border-t border-slate-100 sticky bottom-0 bg-white">
-                                <button onClick={addToCart} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-colors flex justify-center gap-2 items-center">
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
+                                <button onClick={addToCart} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors flex justify-center gap-2 items-center shadow-md">
                                     <span>Додати</span>
                                     <span className="opacity-50">•</span>
                                     <span>{modalPrice} ₴</span>
@@ -562,19 +585,19 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
                     const qtyInCart = cart.filter(c => c.menuItemId === i.id).reduce((sum, c) => sum + c.quantity, 0);
                     
                     return (
-                    <div key={i.id} className="flex flex-col bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg transition-all group relative">
+                    <div key={i.id} className="flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-xs border border-slate-100 dark:border-slate-800 hover:shadow-lg dark:hover:border-slate-700 transition-all group relative">
                         <button 
                             onClick={(e) => handleLike(e, i.id)} 
-                            className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-sm text-xs font-bold text-slate-600 transition-transform active:scale-90"
+                            className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-xs text-xs font-bold text-slate-600 dark:text-slate-300 transition-transform active:scale-90"
                         >
-                            {likedItems.has(i.id) ? <HeartIcon className="w-4 h-4 text-pink-500" /> : <HeartIconOutline className="w-4 h-4 text-slate-400" />}
-                            <span className={likedItems.has(i.id) ? "text-pink-600" : "text-slate-500"}>{i.favoritesCount || 0}</span>
+                            {likedItems.has(i.id) ? <HeartIcon className="w-4 h-4 text-pink-500" /> : <HeartIconOutline className="w-4 h-4 text-slate-400 dark:text-slate-400" />}
+                            <span className={likedItems.has(i.id) ? "text-pink-600 dark:text-pink-400" : "text-slate-500 dark:text-slate-400"}>{i.favoritesCount || 0}</span>
                         </button>
                         
-                        <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 relative" onClick={() => openModal(i)}>
+                        <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800 relative cursor-pointer" onClick={() => openModal(i)}>
                             {i.imageUrl ? 
-                                <img src={i.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer" />
-                                : <div className="w-full h-full cursor-pointer"></div>
+                                <img src={i.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                : <div className="w-full h-full"></div>
                             }
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
                             <button className="absolute bottom-2 left-2 w-8 h-8 bg-black/40 backdrop-blur-md text-white rounded-full flex items-center justify-center pointer-events-none">
@@ -583,16 +606,16 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
                         </div>
                         
                         <div className="p-4 flex flex-col flex-1">
-                            <h3 className="font-semibold text-slate-900 leading-tight mb-1 text-sm cursor-pointer hover:underline" onClick={() => openModal(i)}>{i.name}</h3>
-                            <p className="text-slate-500 font-medium mb-4 flex-1 text-sm cursor-pointer" onClick={() => openModal(i)}>{i.price} ₴</p>
+                            <h3 className="font-semibold text-slate-900 dark:text-white leading-tight mb-1 text-sm cursor-pointer hover:underline" onClick={() => openModal(i)}>{i.name}</h3>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium mb-4 flex-1 text-sm cursor-pointer" onClick={() => openModal(i)}>{i.price} ₴</p>
                             
                             {qtyInCart > 0 ? (
-                                <div className="flex justify-between items-center bg-slate-100 rounded-2xl p-1 shadow-inner h-11 px-4">
-                                    <span className="text-sm font-medium text-slate-500">В кошику:</span>
-                                    <span className="font-bold text-slate-900 text-center text-lg">{qtyInCart}</span>
+                                <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 shadow-inner h-11 px-4">
+                                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">В кошику:</span>
+                                    <span className="font-bold text-slate-900 dark:text-white text-center text-lg">{qtyInCart}</span>
                                 </div>
                             ) : (
-                                <button onClick={() => quickAdd(i)} className="w-full bg-slate-50 font-bold text-slate-700 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 hover:bg-slate-100">
+                                <button onClick={() => quickAdd(i)} className="w-full bg-slate-50 dark:bg-slate-800/80 font-bold text-slate-700 dark:text-slate-200 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 dark:ring-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700">
                                     Додати
                                 </button>
                             )}
@@ -603,26 +626,26 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
             
             {/* Відображення детального кошика перед кнопкою "Оформити" */}
             {cart.length > 0 && (
-                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm mt-8">
-                    <h3 className="font-bold text-slate-900 mb-4 text-lg">Ваш кошик</h3>
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs mt-8">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-lg">Ваш кошик</h3>
                     <div className="space-y-4">
                         {cart.map(c => {
                             const optKeys = Object.keys(c.options);
                             return (
-                                <div key={c.cartId} className="flex justify-between items-center border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                                <div key={c.cartId} className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800/80 pb-3 last:border-0 last:pb-0">
                                     <div className="flex-1">
-                                        <div className="font-medium text-slate-900">{c.name}</div>
+                                        <div className="font-medium text-slate-900 dark:text-white">{c.name}</div>
                                         {optKeys.length > 0 && (
-                                            <div className="text-xs text-slate-500 leading-tight mt-0.5">
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
                                                 {optKeys.map(k => c.options[k]).flat().filter(Boolean).join(', ')}
                                             </div>
                                         )}
-                                        <div className="text-slate-900 font-bold text-sm mt-1">{c.price} ₴</div>
+                                        <div className="text-slate-900 dark:text-white font-bold text-sm mt-1">{c.price} ₴</div>
                                     </div>
-                                    <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1 shadow-inner shrink-0">
-                                        <button onClick={() => updateCartQty(c.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-slate-600 active:scale-95 transition-all">−</button>
-                                        <span className="font-bold text-slate-900 w-4 text-center">{c.quantity}</span>
-                                        <button onClick={() => updateCartQty(c.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-slate-600 active:scale-95 transition-all">+</button>
+                                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-1 shadow-inner shrink-0">
+                                        <button onClick={() => updateCartQty(c.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all">−</button>
+                                        <span className="font-bold text-slate-900 dark:text-white w-4 text-center">{c.quantity}</span>
+                                        <button onClick={() => updateCartQty(c.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all">+</button>
                                     </div>
                                 </div>
                             );
@@ -633,7 +656,6 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
         </div>
     );
 }
-
 
 function Footer({ info }: { info: any }) {
     const name = info?.name || 'Ресторан «RestoFlow»';
@@ -647,32 +669,32 @@ function Footer({ info }: { info: any }) {
     const allergensNote = info?.allergensNote || 'Якщо у вас є харчова алергія або особливі побажання до інгредієнтів, будь ласка, повідомте про це офіціанта.';
 
     return (
-        <footer className="mt-8 px-6 pt-8 pb-12 bg-white border-t border-slate-200/80 text-slate-600 rounded-t-[2.5rem] shadow-sm">
+        <footer className="mt-8 px-6 pt-8 pb-12 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-t-[2.5rem] shadow-xs">
             {/* Логотип закладу та назва */}
             <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 font-black text-xl mb-3 shadow-sm border border-indigo-100">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-black text-xl mb-3 shadow-xs border border-indigo-100 dark:border-indigo-900/50">
                     {name.charAt(0) || 'R'}
                 </div>
-                <h2 className="text-xl font-black tracking-tight text-slate-900">{name}</h2>
-                {description && <p className="text-xs text-slate-400 mt-1">{description}</p>}
+                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{name}</h2>
+                {description && <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">{description}</p>}
             </div>
 
             {/* Швидкі картки з інформацією */}
             <div className="space-y-3 mb-6">
                 {/* Wi-Fi плашка */}
                 {wifiSsid && (
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-100/70 text-indigo-600 rounded-xl">
+                            <div className="p-2 bg-indigo-100/70 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 rounded-xl">
                                 <WifiIcon className="w-5 h-5" />
                             </div>
                             <div className="text-left">
-                                <div className="text-xs text-slate-400 font-medium">Wi-Fi для гостей</div>
-                                <div className="text-sm font-bold text-slate-800">{wifiSsid}</div>
+                                <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Wi-Fi для гостей</div>
+                                <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{wifiSsid}</div>
                             </div>
                         </div>
                         {wifiPassword && (
-                            <span className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 shadow-sm">
+                            <span className="text-xs font-mono font-bold bg-white dark:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 shadow-2xs">
                                 {wifiPassword}
                             </span>
                         )}
@@ -681,31 +703,31 @@ function Footer({ info }: { info: any }) {
 
                 {/* Графік роботи */}
                 {workingHours && (
-                    <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                        <div className="p-2 bg-emerald-100/70 text-emerald-600 rounded-xl">
+                    <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                        <div className="p-2 bg-emerald-100/70 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl">
                             <ClockIcon className="w-5 h-5" />
                         </div>
                         <div className="text-left">
-                            <div className="text-xs text-slate-400 font-medium">Графік роботи</div>
-                            <div className="text-sm font-semibold text-slate-800">{workingHours}</div>
+                            <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Графік роботи</div>
+                            <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{workingHours}</div>
                         </div>
                     </div>
                 )}
 
                 {/* Адреса та контакт */}
                 {(address || phone) && (
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 bg-amber-100/70 text-amber-600 rounded-xl">
+                            <div className="p-2 bg-amber-100/70 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 rounded-xl">
                                 <MapPinIcon className="w-5 h-5" />
                             </div>
                             <div>
-                                <div className="text-xs text-slate-400 font-medium">Локація та бронь</div>
-                                <div className="text-sm font-semibold text-slate-800">{address || phone}</div>
+                                <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Локація та бронь</div>
+                                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{address || phone}</div>
                             </div>
                         </div>
                         {phone && (
-                            <a href={phoneLink} className="p-2 text-slate-500 hover:text-indigo-600 transition-colors" title="Зателефонувати">
+                            <a href={phoneLink} className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Зателефонувати">
                                 <PhoneIcon className="w-5 h-5" />
                             </a>
                         )}
@@ -715,8 +737,8 @@ function Footer({ info }: { info: any }) {
                 {/* Інтерактивна карта Leaflet */}
                 <div className="pt-2">
                     <div className="flex items-center justify-between mb-2 px-1">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Як нас знайти</span>
-                        <span className="text-xs text-indigo-600 font-medium truncate max-w-[200px]">{address}</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Як нас знайти</span>
+                        <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate max-w-[200px]">{address}</span>
                     </div>
                     <LeafletMap 
                         lat={info?.latitude || 50.4485} 
@@ -731,10 +753,10 @@ function Footer({ info }: { info: any }) {
 
             {/* Інформація про алергени */}
             {allergensNote && (
-                <div className="p-3.5 bg-amber-50/70 rounded-2xl border border-amber-100 mb-6 text-left">
+                <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/40 rounded-2xl border border-amber-100 dark:border-amber-900/40 mb-6 text-left">
                     <div className="flex items-start gap-2.5">
-                        <InformationCircleIcon className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <p className="text-xs text-amber-900/80 leading-relaxed">
+                        <InformationCircleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-900/80 dark:text-amber-300 leading-relaxed">
                             {allergensNote}
                         </p>
                     </div>
@@ -742,11 +764,11 @@ function Footer({ info }: { info: any }) {
             )}
 
             {/* Копірайт та інфо */}
-            <div className="text-center border-t border-slate-100 pt-5">
-                <p className="text-xs text-slate-400 font-medium">
+            <div className="text-center border-t border-slate-100 dark:border-slate-800 pt-5">
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
                     Безконтактне обслуговування • Оплата онлайн або карткою
                 </p>
-                <p className="text-[11px] text-slate-300 mt-1">
+                <p className="text-[11px] text-slate-300 dark:text-slate-600 mt-1">
                     © 2026 {name} • Смачного відпочинку! ✨
                 </p>
             </div>
