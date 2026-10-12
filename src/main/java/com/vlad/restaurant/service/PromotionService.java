@@ -71,6 +71,16 @@ public class PromotionService {
     }
 
     @Transactional
+    public PromotionResponse toggleShowInSlider(UUID id) {
+        Promotion p = promotionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Акцію не знайдено"));
+        p.setShowInSlider(!p.isShowInSlider());
+        Promotion saved = promotionRepository.save(p);
+        log.info("Змінено показ у слайдері для {}: {}", saved.getTitle(), saved.isShowInSlider());
+        return PromotionResponse.from(saved, getItemName(saved.getTargetMenuItemId()));
+    }
+
+    @Transactional
     public PromotionResponse toggleActive(UUID id) {
         Promotion p = promotionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Акцію не знайдено"));
@@ -137,6 +147,9 @@ public class PromotionService {
         p.setTargetMenuItemId(request.targetMenuItemId());
         if (request.active() != null) {
             p.setActive(request.active());
+        }
+        if (request.showInSlider() != null) {
+            p.setShowInSlider(request.showInSlider());
         }
         if (request.displayOrder() != null) {
             p.setDisplayOrder(request.displayOrder());

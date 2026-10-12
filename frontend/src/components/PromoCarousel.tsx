@@ -22,6 +22,7 @@ export interface PromotionItem {
     targetMenuItemId?: number;
     targetMenuItemName?: string;
     active: boolean;
+    showInSlider?: boolean;
     displayOrder: number;
     promoType?: 'ORDER_PERCENT' | 'COMBO' | 'INFO';
     comboConfig?: string;
@@ -49,7 +50,8 @@ export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCa
     useEffect(() => {
         api.get('/promotions/active')
             .then(res => {
-                setPromotions(res.data);
+                const sliderPromos = (res.data || []).filter((p: PromotionItem) => p.showInSlider !== false);
+                setPromotions(sliderPromos);
             })
             .catch(() => {});
     }, []);
@@ -109,20 +111,19 @@ export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCa
 
     const triggerCallWaiter = (_promoTitle: string) => {
         setCallingWaiter(true);
-        api.post('/service-calls', { type: 'WAITER' })
-            .then(() => {
-                setCallSuccess(true);
-                setTimeout(() => {
-                    setCallSuccess(false);
-                    setCallingWaiter(false);
-                    setSelectedPromo(null);
-                    if (onCallWaiter) onCallWaiter();
-                }, 2000);
-            })
-            .catch(() => {
+        api.post('/service-calls', { type: 'WAITER' }
+        ).then(() => {
+            setCallSuccess(true);
+            setTimeout(() => {
+                setCallSuccess(false);
                 setCallingWaiter(false);
-                alert('Не вдалося покликати офіціанта. Спробуйте кнопку дзвіночка у шапці.');
-            });
+                setSelectedPromo(null);
+                if (onCallWaiter) onCallWaiter();
+            }, 2000);
+        }).catch(() => {
+            setCallingWaiter(false);
+            alert('Не вдалося покликати офіціанта. Спробуйте кнопку дзвіночка у шапці.');
+        });
     };
 
     const currentPromo = promotions[currentIndex];

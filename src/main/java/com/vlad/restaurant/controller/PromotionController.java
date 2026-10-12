@@ -60,6 +60,12 @@ public class PromotionController {
         return promotionService.toggleActive(id);
     }
 
+    @PatchMapping("/{id}/toggle-slider")
+    @PreAuthorize("hasRole('ADMIN')")
+    public PromotionResponse toggleShowInSlider(@PathVariable UUID id) {
+        return promotionService.toggleShowInSlider(id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

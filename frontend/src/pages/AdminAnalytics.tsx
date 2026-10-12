@@ -223,13 +223,9 @@ export default function AdminAnalytics() {
 
 function StatCard({ title, value }: { title: string, value: string | number, trend?: any }) {
     return (
-        <div className="bg-white dark:bg-slate-800 p-5 lg:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                {/* Decorative element */}
-                <div className="w-16 h-16 rounded-full bg-indigo-500"></div>
-            </div>
-            <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">{title}</div>
-            <div className="text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white">{value}</div>
+        <div className="bg-white dark:bg-slate-800 p-5 lg:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-t-2 border-t-indigo-500/70 hover:-translate-y-0.5 hover:shadow-md transition-all">
+            <div className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3">{title}</div>
+            <div className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{value}</div>
         </div>
     );
 }

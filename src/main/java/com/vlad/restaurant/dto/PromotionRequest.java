@@ -12,6 +12,7 @@ public record PromotionRequest(
         String actionType,
         Long targetMenuItemId,
         Boolean active,
+        Boolean showInSlider,
         Integer displayOrder,
         Integer discountPercent,
         String promoType,

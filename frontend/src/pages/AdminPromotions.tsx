@@ -59,6 +59,7 @@ interface Promotion {
     targetMenuItemId?: number;
     targetMenuItemName?: string;
     active: boolean;
+    showInSlider?: boolean;
     displayOrder: number;
     discountPercent?: number;
     usageCount?: number;
@@ -106,6 +107,7 @@ export default function AdminPromotions() {
     const [displayOrder, setDisplayOrder] = useState<number>(0);
     const [discountPercent, setDiscountPercent] = useState<number>(0);
     const [active, setActive] = useState(true);
+    const [showInSlider, setShowInSlider] = useState(true);
     const [promoType, setPromoType] = useState<'ORDER_PERCENT' | 'COMBO' | 'INFO'>('ORDER_PERCENT');
 
     // Стан для комбо-акції
@@ -183,6 +185,7 @@ export default function AdminPromotions() {
         setDisplayOrder(promotions.length);
         setDiscountPercent(0);
         setActive(true);
+        setShowInSlider(true);
         setPromoType('ORDER_PERCENT');
 
         const initialCatId = categories[0]?.id;
@@ -230,6 +233,7 @@ export default function AdminPromotions() {
         setDisplayOrder(p.displayOrder || 0);
         setDiscountPercent(p.discountPercent || 0);
         setActive(p.active);
+        setShowInSlider(p.showInSlider !== false);
 
         const type = p.promoType || (p.discountPercent && p.discountPercent > 0 ? 'ORDER_PERCENT' : 'INFO');
         setPromoType(type);
@@ -340,6 +344,7 @@ export default function AdminPromotions() {
                 displayOrder: Number(displayOrder) || 0,
                 discountPercent: promoType === 'ORDER_PERCENT' ? (Number(discountPercent) || 0) : (comboReward.rewardType === 'DISCOUNT_PERCENT' ? (comboReward.discountPercent || 0) : 0),
                 active,
+                showInSlider,
                 promoType,
                 comboConfig: comboConfigJson
             };
@@ -356,6 +361,15 @@ export default function AdminPromotions() {
             alert(e.response?.data?.message || 'Помилка збереження акції');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleToggleSlider = async (id: string) => {
+        try {
+            await api.patch(`/promotions/${id}/toggle-slider`);
+            setPromotions(prev => prev.map(p => p.id === id ? { ...p, showInSlider: p.showInSlider === false ? true : false } : p));
+        } catch (e) {
+            alert('Не вдалося змінити показ у банері');
         }
     };
 
@@ -612,6 +626,11 @@ export default function AdminPromotions() {
 
                                         {/* Тип промо */}
                                         <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20 pointer-events-none">
+                                            {p.showInSlider === false && (
+                                                <span className="bg-slate-950/80 backdrop-blur-md text-amber-300 border border-amber-500/30 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wider shadow-md">
+                                                    🚫 Без банеру
+                                                </span>
+                                            )}
                                             {p.promoType === 'COMBO' ? (
                                                 <span className="bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
                                                     🔥 Комбо
@@ -663,20 +682,34 @@ export default function AdminPromotions() {
 
                                 {/* Панель дій */}
                                 <div className="p-5 pt-0">
-                                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                        <button
-                                            onClick={() => handleToggle(p.id)}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                                p.active 
-                                                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20' 
-                                                    : 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
-                                            }`}
-                                        >
-                                            <span className={`w-2 h-2 rounded-full ${p.active ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                                            <span>{p.active ? 'Активна' : 'Прихована'}</span>
-                                        </button>
+                                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <button
+                                                onClick={() => handleToggle(p.id)}
+                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                    p.active 
+                                                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20' 
+                                                        : 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
+                                                }`}
+                                            >
+                                                <span className={`w-2 h-2 rounded-full ${p.active ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                                <span>{p.active ? 'Активна' : 'Прихована'}</span>
+                                            </button>
 
-                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                onClick={() => handleToggleSlider(p.id)}
+                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                    p.showInSlider !== false
+                                                        ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                                }`}
+                                                title={p.showInSlider !== false ? 'Показується в банері (клікніть, щоб вимкнути)' : 'Приховано з банеру (клікніть, щоб увімкнути)'}
+                                            >
+                                                <span>{p.showInSlider !== false ? '🖼️ Банер' : '🚫 Без банеру'}</span>
+                                            </button>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 shrink-0">
                                             <button
                                                 onClick={() => openEditModal(p)}
                                                 className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -1616,20 +1649,65 @@ export default function AdminPromotions() {
                                 </div>
                             )}
 
-                            {/* Активність */}
-                            <div className="pt-2">
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={active}
-                                        onChange={(e) => setActive(e.target.checked)}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                                    <span className="ml-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-                                        Активувати акцію (видима для гостей та офіціантів)
-                                    </span>
-                                </label>
+                            {/* Активність та показ у промо-банері */}
+                            <div className="pt-2 space-y-3 border-t border-slate-100 dark:border-slate-800">
+                                <div 
+                                    onClick={() => setActive(!active)}
+                                    className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none"
+                                >
+                                    <div className="pr-4">
+                                        <span className="text-sm font-bold text-slate-900 dark:text-white block">
+                                            Активувати акцію
+                                        </span>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5">
+                                            Видима для гостей у додатку та для офіціантів
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={active}
+                                        onClick={(e) => { e.stopPropagation(); setActive(!active); }}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            active ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                                                active ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+
+                                <div 
+                                    onClick={() => setShowInSlider(!showInSlider)}
+                                    className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors select-none"
+                                >
+                                    <div className="pr-4">
+                                        <span className="text-sm font-bold text-slate-900 dark:text-white block">
+                                            Показувати у промо-банері (каруселі)
+                                        </span>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5">
+                                            Якщо вимкнено — акція/комбо буде прихована з верхнього слайдера, але залишиться доступною в меню
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={showInSlider}
+                                        onClick={(e) => { e.stopPropagation(); setShowInSlider(!showInSlider); }}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            showInSlider ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                                                showInSlider ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
                         </form>
 

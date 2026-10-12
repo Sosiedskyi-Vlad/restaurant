@@ -46,6 +46,10 @@ public class Promotion {
     @ColumnDefault("true")
     private boolean active = true;
 
+    @Column(name = "show_in_slider", nullable = false)
+    @ColumnDefault("true")
+    private boolean showInSlider = true;
+
     @Column(name = "display_order", nullable = false)
     @ColumnDefault("0")
     private int displayOrder = 0;
