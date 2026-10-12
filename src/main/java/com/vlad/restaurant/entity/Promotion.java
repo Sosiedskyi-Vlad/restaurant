@@ -55,6 +55,15 @@ public class Promotion {
     @ColumnDefault("0")
     private Integer discountPercent = 0;
 
+    // ORDER_PERCENT, COMBO, ITEM_PERCENT, INFO
+    @Column(name = "promo_type", nullable = false)
+    @ColumnDefault("'ORDER_PERCENT'")
+    private String promoType = "ORDER_PERCENT";
+
+    // JSON конфігурація для комбо (слоти товарів/категорій + винагорода)
+    @Column(name = "combo_config", columnDefinition = "TEXT")
+    private String comboConfig;
+
     // Статистика використання акції
     @Column(name = "usage_count", nullable = false)
     @ColumnDefault("0")

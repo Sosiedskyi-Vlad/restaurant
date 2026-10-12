@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api';
 import {
@@ -13,8 +13,40 @@ import {
     BellAlertIcon,
     InformationCircleIcon,
     MagnifyingGlassIcon,
-    CheckIcon
+    CheckIcon,
+    GiftIcon,
+    TagIcon,
+    CubeIcon,
+    ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
+
+export interface ComboSlot {
+    id: string;
+    name: string;
+    selectionType: 'CATEGORY' | 'ITEMS';
+    categoryId?: number;
+    categoryName?: string;
+    itemIds: number[];
+    itemNames: string[];
+    quantity: number;
+}
+
+export interface ComboReward {
+    rewardType: 'FREE_ITEM' | 'FIXED_PRICE' | 'DISCOUNT_PERCENT';
+    selectionType: 'CATEGORY' | 'ITEMS';
+    categoryId?: number;
+    categoryName?: string;
+    itemIds: number[];
+    itemNames: string[];
+    quantity: number;
+    discountPercent?: number;
+    fixedPrice?: number;
+}
+
+export interface ComboConfig {
+    slots: ComboSlot[];
+    reward: ComboReward;
+}
 
 interface Promotion {
     id: string;
@@ -32,19 +64,28 @@ interface Promotion {
     usageCount?: number;
     totalDiscountGiven?: number;
     createdAt: string;
+    promoType?: 'ORDER_PERCENT' | 'COMBO' | 'INFO';
+    comboConfig?: string;
 }
 
 interface MenuItemOption {
     id: number;
     name: string;
     price: number;
+    categoryId?: number;
     categoryName?: string;
     imageUrl?: string;
+}
+
+interface CategoryOption {
+    id: number;
+    name: string;
 }
 
 export default function AdminPromotions() {
     const [promotions, setPromotions] = useState<Promotion[]>([]);
     const [menuItems, setMenuItems] = useState<MenuItemOption[]>([]);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Стан модального вікна
@@ -52,19 +93,34 @@ export default function AdminPromotions() {
     const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
-    // Поля форми
+    // Загальні поля форми
     const [title, setTitle] = useState('');
     const [badgeText, setBadgeText] = useState('');
     const [shortDescription, setShortDescription] = useState('');
     const [fullContent, setFullContent] = useState('');
     const [imageUrl, setImageUrl] = useState('');
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [actionType, setActionType] = useState<'NONE' | 'MENU_ITEM' | 'CALL_WAITER'>('NONE');
     const [targetMenuItemId, setTargetMenuItemId] = useState<number | ''>('');
     const [displayOrder, setDisplayOrder] = useState<number>(0);
     const [discountPercent, setDiscountPercent] = useState<number>(0);
     const [active, setActive] = useState(true);
+    const [promoType, setPromoType] = useState<'ORDER_PERCENT' | 'COMBO' | 'INFO'>('ORDER_PERCENT');
 
-    // Стан пошуку та вибору страви
+    // Стан для комбо-акції
+    const [comboSlots, setComboSlots] = useState<ComboSlot[]>([]);
+    const [comboReward, setComboReward] = useState<ComboReward>({
+        rewardType: 'FREE_ITEM',
+        selectionType: 'CATEGORY',
+        itemIds: [],
+        itemNames: [],
+        quantity: 1,
+        discountPercent: 100,
+        fixedPrice: 0
+    });
+
+    // Стан пошуку та вибору прив'язаної страви (CTA)
     const [dishSearch, setDishSearch] = useState('');
     const [isDishDropdownOpen, setIsDishDropdownOpen] = useState(false);
 
@@ -80,19 +136,39 @@ export default function AdminPromotions() {
         }
     };
 
-    const fetchMenuItems = async () => {
+    const fetchMenuData = async () => {
         try {
-            const res = await api.get('/menu/items');
-            // res.data вже містить активні страви з бекенду
-            setMenuItems(res.data || []);
+            const [itemsRes, catsRes] = await Promise.all([
+                api.get('/menu/items'),
+                api.get('/menu/categories').catch(() => ({ data: [] }))
+            ]);
+            setMenuItems(itemsRes.data || []);
+
+            if (catsRes.data && catsRes.data.length > 0) {
+                setCategories(catsRes.data);
+            } else {
+                // Витягуємо унікальні категорії зі страв, якщо ендпоінт пустий
+                const uniqueCats: CategoryOption[] = [];
+                const seen = new Set<string>();
+                (itemsRes.data || []).forEach((item: any) => {
+                    if (item.categoryName && !seen.has(item.categoryName)) {
+                        seen.add(item.categoryName);
+                        uniqueCats.push({
+                            id: item.categoryId || uniqueCats.length + 1,
+                            name: item.categoryName
+                        });
+                    }
+                });
+                setCategories(uniqueCats);
+            }
         } catch (e) {
-            console.error('Помилка завантаження страв', e);
+            console.error('Помилка завантаження меню', e);
         }
     };
 
     useEffect(() => {
         fetchPromotions();
-        fetchMenuItems();
+        fetchMenuData();
     }, []);
 
     const openCreateModal = () => {
@@ -107,6 +183,36 @@ export default function AdminPromotions() {
         setDisplayOrder(promotions.length);
         setDiscountPercent(0);
         setActive(true);
+        setPromoType('ORDER_PERCENT');
+
+        const initialCatId = categories[0]?.id;
+        const initialCatName = categories[0]?.name;
+
+        setComboSlots([
+            {
+                id: 'slot_1',
+                name: 'Основна страва',
+                selectionType: 'CATEGORY',
+                categoryId: initialCatId,
+                categoryName: initialCatName,
+                itemIds: [],
+                itemNames: [],
+                quantity: 1
+            }
+        ]);
+
+        setComboReward({
+            rewardType: 'FREE_ITEM',
+            selectionType: 'CATEGORY',
+            categoryId: initialCatId,
+            categoryName: initialCatName,
+            itemIds: [],
+            itemNames: [],
+            quantity: 1,
+            discountPercent: 100,
+            fixedPrice: 0
+        });
+
         setDishSearch('');
         setIsDishDropdownOpen(false);
         setModalOpen(true);
@@ -124,6 +230,50 @@ export default function AdminPromotions() {
         setDisplayOrder(p.displayOrder || 0);
         setDiscountPercent(p.discountPercent || 0);
         setActive(p.active);
+
+        const type = p.promoType || (p.discountPercent && p.discountPercent > 0 ? 'ORDER_PERCENT' : 'INFO');
+        setPromoType(type);
+
+        if (p.comboConfig) {
+            try {
+                const parsed = JSON.parse(p.comboConfig);
+                if (parsed.slots && Array.isArray(parsed.slots)) {
+                    setComboSlots(parsed.slots);
+                }
+                if (parsed.reward) {
+                    setComboReward(parsed.reward);
+                }
+            } catch (e) {
+                console.error('Помилка парсингу комбо-конфігурації', e);
+            }
+        } else {
+            const initialCatId = categories[0]?.id;
+            const initialCatName = categories[0]?.name;
+            setComboSlots([
+                {
+                    id: 'slot_1',
+                    name: 'Основна страва',
+                    selectionType: 'CATEGORY',
+                    categoryId: initialCatId,
+                    categoryName: initialCatName,
+                    itemIds: [],
+                    itemNames: [],
+                    quantity: 1
+                }
+            ]);
+            setComboReward({
+                rewardType: 'FREE_ITEM',
+                selectionType: 'CATEGORY',
+                categoryId: initialCatId,
+                categoryName: initialCatName,
+                itemIds: [],
+                itemNames: [],
+                quantity: 1,
+                discountPercent: 100,
+                fixedPrice: 0
+            });
+        }
+
         setDishSearch('');
         setIsDishDropdownOpen(false);
         setModalOpen(true);
@@ -141,8 +291,44 @@ export default function AdminPromotions() {
             return;
         }
 
+        if (promoType === 'COMBO') {
+            if (comboSlots.length === 0) {
+                alert('Будь ласка, додайте хоча б один слот вимог (Блок А)');
+                return;
+            }
+            for (let i = 0; i < comboSlots.length; i++) {
+                const s = comboSlots[i];
+                if (s.selectionType === 'CATEGORY' && !s.categoryId) {
+                    alert(`Будь ласка, оберіть категорію для слоту #${i + 1}`);
+                    return;
+                }
+                if (s.selectionType === 'ITEMS' && (!s.itemIds || s.itemIds.length === 0)) {
+                    alert(`Будь ласка, оберіть хоча б одну страву для слоту #${i + 1}`);
+                    return;
+                }
+            }
+            if (comboReward.rewardType === 'FREE_ITEM') {
+                if (comboReward.selectionType === 'CATEGORY' && !comboReward.categoryId) {
+                    alert('Будь ласка, оберіть категорію для подарунка');
+                    return;
+                }
+                if (comboReward.selectionType === 'ITEMS' && (!comboReward.itemIds || comboReward.itemIds.length === 0)) {
+                    alert('Будь ласка, оберіть хоча б одну подарункову страву');
+                    return;
+                }
+            }
+        }
+
         setSubmitting(true);
         try {
+            let comboConfigJson: string | null = null;
+            if (promoType === 'COMBO') {
+                comboConfigJson = JSON.stringify({
+                    slots: comboSlots,
+                    reward: comboReward
+                });
+            }
+
             const payload = {
                 title: title.trim(),
                 badgeText: badgeText.trim() || null,
@@ -152,8 +338,10 @@ export default function AdminPromotions() {
                 actionType,
                 targetMenuItemId: actionType === 'MENU_ITEM' && targetMenuItemId ? Number(targetMenuItemId) : null,
                 displayOrder: Number(displayOrder) || 0,
-                discountPercent: Number(discountPercent) || 0,
-                active
+                discountPercent: promoType === 'ORDER_PERCENT' ? (Number(discountPercent) || 0) : (comboReward.rewardType === 'DISCOUNT_PERCENT' ? (comboReward.discountPercent || 0) : 0),
+                active,
+                promoType,
+                comboConfig: comboConfigJson
             };
 
             if (editingPromotion) {
@@ -180,6 +368,44 @@ export default function AdminPromotions() {
         }
     };
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        const file = e.target.files[0];
+        setUploadingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post('/promotions/upload-image', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (res.data && res.data.imageUrl) {
+                setImageUrl(res.data.imageUrl);
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'Помилка завантаження зображення');
+        } finally {
+            setUploadingImage(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const uploadImageForPromoCard = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        const file = e.target.files[0];
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post(`/promotions/${id}/image`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (res.data && res.data.imageUrl) {
+                setPromotions(prev => prev.map(p => p.id === id ? { ...p, imageUrl: res.data.imageUrl } : p));
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'Помилка завантаження зображення');
+        }
+    };
+
     const handleDelete = async (id: string, name: string) => {
         if (!window.confirm(`Видалити акцію «${name}»?`)) return;
         try {
@@ -190,7 +416,7 @@ export default function AdminPromotions() {
         }
     };
 
-    // Фільтрація страв за пошуковим запитом
+    // Фільтрація страв для прив'язки CTA
     const filteredDishes = useMemo(() => {
         if (!dishSearch.trim()) return menuItems;
         const q = dishSearch.toLowerCase();
@@ -198,181 +424,236 @@ export default function AdminPromotions() {
             item.name.toLowerCase().includes(q) ||
             (item.categoryName && item.categoryName.toLowerCase().includes(q))
         );
-    }, [menuItems, dishSearch]);
+    }, [dishSearch, menuItems]);
 
     const selectedDish = useMemo(() => {
-        return menuItems.find(m => m.id === targetMenuItemId);
-    }, [menuItems, targetMenuItemId]);
+        if (!targetMenuItemId) return null;
+        return menuItems.find(i => i.id === targetMenuItemId) || null;
+    }, [targetMenuItemId, menuItems]);
 
-    const activeCount = promotions.filter(p => p.active).length;
-    const ctaCount = promotions.filter(p => p.actionType !== 'NONE').length;
+    // Допоміжні функції для слотів комбо
+    const addComboSlot = () => {
+        const initialCat = categories[0];
+        setComboSlots(prev => [
+            ...prev,
+            {
+                id: `slot_${Date.now()}`,
+                name: `Страва #${prev.length + 1}`,
+                selectionType: 'CATEGORY',
+                categoryId: initialCat?.id,
+                categoryName: initialCat?.name,
+                itemIds: [],
+                itemNames: [],
+                quantity: 1
+            }
+        ]);
+    };
+
+    const removeComboSlot = (slotId: string) => {
+        if (comboSlots.length <= 1) return;
+        setComboSlots(prev => prev.filter(s => s.id !== slotId));
+    };
+
+    const updateComboSlot = (slotId: string, patch: Partial<ComboSlot>) => {
+        setComboSlots(prev => prev.map(s => s.id === slotId ? { ...s, ...patch } : s));
+    };
+
+    // Текст формули для прев'ю
+    const getFormulaSummary = (slots: ComboSlot[], reward: ComboReward) => {
+        const slotsText = slots.map(s => {
+            const qty = s.quantity || 1;
+            if (s.selectionType === 'CATEGORY') {
+                return `${qty}× [Категорія: ${s.categoryName || 'Будь-яка'}]`;
+            } else {
+                const names = s.itemNames.length > 0 ? s.itemNames.join(', ') : 'Обрані страви';
+                return `${qty}× [${names}]`;
+            }
+        }).join(' + ');
+
+        let rewardText = '';
+        if (reward.rewardType === 'FREE_ITEM') {
+            const target = reward.selectionType === 'CATEGORY'
+                ? `Категорія ${reward.categoryName || ''}`
+                : (reward.itemNames.length > 0 ? reward.itemNames.join(', ') : 'Обрана страва');
+            rewardText = `🎁 ${reward.quantity || 1}× ${target} (Безкоштовно)`;
+        } else if (reward.rewardType === 'FIXED_PRICE') {
+            rewardText = `🏷️ Всього ${reward.fixedPrice || 0} ₴ за комбо`;
+        } else if (reward.rewardType === 'DISCOUNT_PERCENT') {
+            rewardText = `🏷️ Знижка -${reward.discountPercent || 0}% на комбо`;
+        }
+
+        return `${slotsText} ➔ ${rewardText}`;
+    };
 
     return (
-        <div className="h-full overflow-y-auto p-6 lg:p-10 space-y-6">
-            {/* Заголовок сторінки */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 sm:p-8 max-w-7xl space-y-8 animate-in fade-in duration-300">
+            {/* Заголовок та кнопка створення */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-                        <MegaphoneIcon className="w-8 h-8 text-indigo-600 dark:text-indigo-400 stroke-2" />
-                        Акції та спеціальні пропозиції
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                        <span className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+                            <MegaphoneIcon className="w-6 h-6 stroke-2" />
+                        </span>
+                        Акції, Комбо та Банери
                     </h1>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Управління промо-слайдером для гостей, сторінками знижок та кнопками швидкої дії
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Керування промо-слайдером, знижками на чеки та комбо-пропозиціями ресторану
                     </p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={openCreateModal}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-indigo-500/20 active:scale-95"
-                    >
-                        <PlusIcon className="w-5 h-5 stroke-2" />
-                        <span>Створити акцію</span>
-                    </button>
-                </div>
+                <button
+                    onClick={openCreateModal}
+                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/25 active:scale-95 transition-all w-full sm:w-auto cursor-pointer"
+                >
+                    <PlusIcon className="w-5 h-5 stroke-2" />
+                    <span>Створити акцію</span>
+                </button>
             </div>
 
             {/* Метрики */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Всього створено акцій
-                    </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Всього акцій</span>
+                    <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
                         {promotions.length}
-                    </div>
+                    </span>
                 </div>
-
-                <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Активні на слайдері зараз
-                    </div>
-                    <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-2">
-                        {activeCount}
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    </div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Активних</span>
+                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                        {promotions.filter(p => p.active).length}
+                    </span>
                 </div>
-
-                <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Застосовано гостями
-                    </div>
-                    <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Застосовано</span>
+                    <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1 block">
                         {promotions.reduce((sum, p) => sum + (p.usageCount || 0), 0)} разів
-                    </div>
+                    </span>
                 </div>
-
-                <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Зекономлено гостями
-                    </div>
-                    <div className="text-2xl font-black text-amber-500 dark:text-amber-400 mt-1">
-                        {promotions.reduce((sum, p) => sum + (Number(p.totalDiscountGiven) || 0), 0).toLocaleString()} ₴
-                    </div>
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Сума знижок</span>
+                    <span className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block whitespace-nowrap">
+                        {promotions.reduce((sum, p) => sum + (Number(p.totalDiscountGiven) || 0), 0).toLocaleString()}&nbsp;₴
+                    </span>
                 </div>
             </div>
 
-            {/* Список карток акцій */}
+            {/* Список карток */}
             {promotions.length === 0 && !loading ? (
-                <div className="bg-white dark:bg-slate-800/80 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 text-slate-400">
-                    <SparklesIcon className="w-12 h-12 mx-auto text-indigo-400 stroke-1 mb-3 opacity-60" />
-                    <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200">Поки що немає акцій</h3>
-                    <p className="text-sm mt-1 max-w-sm mx-auto">
-                        Створіть свій перший рекламний банер або знижку, щоб зацікавити гостей та підвищити продажі
+                <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200/80 dark:border-slate-800">
+                    <SparklesIcon className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Акцій поки немає</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                        Створіть святкову знижку, комбо-набір або банер про сезонне меню.
                     </p>
                     <button
                         onClick={openCreateModal}
-                        className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm hover:bg-indigo-500 shadow-xs"
+                        className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-500 transition-colors"
                     >
-                        <PlusIcon className="w-4 h-4 stroke-2" /> Додати акцію
+                        + Додати першу акцію
                     </button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {promotions.map((p) => (
-                        <div
-                            key={p.id}
-                            className={`bg-white dark:bg-slate-800/90 rounded-3xl overflow-hidden border transition-all flex flex-col shadow-xs ${
-                                p.active 
-                                    ? 'border-slate-200 dark:border-slate-750 hover:shadow-md' 
-                                    : 'border-slate-200/50 dark:border-slate-800/50 opacity-60 bg-slate-50/50 dark:bg-slate-900/40'
-                            }`}
-                        >
-                            {/* Постер акції */}
-                            <div className="relative aspect-[16/9] w-full bg-slate-100 dark:bg-slate-900 overflow-hidden">
-                                {p.imageUrl ? (
-                                    <img
-                                        src={p.imageUrl}
-                                        alt={p.title}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1">
-                                        <PhotoIcon className="w-10 h-10 stroke-1" />
-                                        <span className="text-xs">Без зображення</span>
-                                    </div>
-                                )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                    {promotions.map((p) => {
+                        let parsedCombo: ComboConfig | null = null;
+                        if (p.promoType === 'COMBO' && p.comboConfig) {
+                            try { parsedCombo = JSON.parse(p.comboConfig); } catch (e) {}
+                        }
 
-                                {/* Бейдж зверху */}
-                                {p.badgeText && (
-                                    <div className="absolute top-3 left-3 px-3 py-1 bg-amber-500/90 text-white text-xs font-black uppercase tracking-wider rounded-full shadow-md backdrop-blur-xs">
-                                        {p.badgeText}
-                                    </div>
-                                )}
-
-                                {/* Індикатор порядку */}
-                                <div className="absolute top-3 right-3 px-2 py-0.5 bg-black/50 text-white/90 text-[11px] font-mono font-bold rounded-lg backdrop-blur-xs">
-                                    #{p.displayOrder}
-                                </div>
-
-                                {/* Заголовок на банері */}
-                                <div className="absolute bottom-3 inset-x-3 text-white">
-                                    <h3 className="font-extrabold text-base leading-snug drop-shadow-sm">
-                                        {p.title}
-                                    </h3>
-                                </div>
-                            </div>
-
-                            {/* Тіло картки */}
-                            <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                                <div className="space-y-2">
-                                    {p.shortDescription && (
-                                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
-                                            {p.shortDescription}
-                                        </p>
-                                    )}
-
-                                    {/* Інформація про цільову дію CTA */}
-                                    <div className="pt-2">
-                                        {p.actionType === 'MENU_ITEM' && (
-                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-xl border border-emerald-500/20">
-                                                <ShoppingBagIcon className="w-4 h-4 shrink-0" />
-                                                <span className="truncate">Страва: {p.targetMenuItemName || `#${p.targetMenuItemId}`}</span>
+                        return (
+                            <div
+                                key={p.id}
+                                className={`group bg-white dark:bg-slate-900 rounded-3xl border transition-all duration-200 overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md ${
+                                    p.active 
+                                        ? 'border-slate-200 dark:border-slate-800' 
+                                        : 'border-slate-200/60 dark:border-slate-800/60 opacity-60'
+                                }`}
+                            >
+                                <div>
+                                    {/* Зображення банера */}
+                                    <div className="relative aspect-[16/9] w-full bg-slate-100 dark:bg-slate-800 overflow-hidden group/img">
+                                        {p.imageUrl ? (
+                                            <img
+                                                src={p.imageUrl}
+                                                alt={p.title}
+                                                className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-300"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-2">
+                                                <PhotoIcon className="w-10 h-10 stroke-1" />
+                                                <span className="text-xs font-medium">Без постера</span>
                                             </div>
                                         )}
-                                        {p.actionType === 'CALL_WAITER' && (
-                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-xl border border-amber-500/20">
-                                                <BellAlertIcon className="w-4 h-4 shrink-0" />
-                                                <span>Виклик офіціанта гостем</span>
+
+                                        {/* Швидка зміна фото з комп'ютера при наведенні */}
+                                        <label
+                                            className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover/img:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 text-white font-bold text-xs cursor-pointer backdrop-blur-[2px] z-10"
+                                            title="Натисніть щоб змінити постер"
+                                        >
+                                            <div className="p-2 rounded-full bg-white/20 backdrop-blur-md">
+                                                <PhotoIcon className="w-5 h-5 text-white stroke-2" />
+                                            </div>
+                                            <span>Змінити постер</span>
+                                            <span className="text-[10px] text-slate-300 font-normal">обрати з комп'ютера</span>
+                                            <input
+                                                type="file"
+                                                accept="image/png, image/jpeg, image/jpg, image/webp"
+                                                onChange={(e) => uploadImageForPromoCard(p.id, e)}
+                                                className="hidden"
+                                            />
+                                        </label>
+
+                                        {/* Бейдж промо */}
+                                        {p.badgeText && (
+                                            <div className="absolute top-3 left-3 bg-slate-950/70 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md z-20 pointer-events-none">
+                                                {p.badgeText}
                                             </div>
                                         )}
-                                        {p.actionType === 'NONE' && (
-                                            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl">
-                                                <InformationCircleIcon className="w-4 h-4 shrink-0" />
-                                                <span>Інформаційний перегляд</span>
-                                            </div>
-                                        )}
+
+                                        {/* Тип промо */}
+                                        <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20 pointer-events-none">
+                                            {p.promoType === 'COMBO' ? (
+                                                <span className="bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
+                                                    🔥 Комбо
+                                                </span>
+                                            ) : p.discountPercent && p.discountPercent > 0 ? (
+                                                <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
+                                                    🏷️ -{p.discountPercent}%
+                                                </span>
+                                            ) : (
+                                                <span className="bg-indigo-600/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                                                    ℹ️ Інфо
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    {/* Відсоток знижки та статистика */}
-                                    <div className="pt-2 flex flex-col gap-1.5">
-                                        {p.discountPercent && p.discountPercent > 0 ? (
-                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 text-xs font-bold w-fit">
-                                                <span>🏷️ Знижка на чек: -{p.discountPercent}%</span>
-                                            </div>
-                                        ) : null}
+                                    {/* Інформація */}
+                                    <div className="p-5 space-y-3">
+                                        <div>
+                                            <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                                                {p.title}
+                                            </h3>
+                                            {p.shortDescription && (
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                                                    {p.shortDescription}
+                                                </p>
+                                            )}
+                                        </div>
 
+                                        {/* Якщо комбо - показуємо формулу */}
+                                        {parsedCombo && (
+                                            <div className="p-2.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-[11px] text-amber-900 dark:text-amber-200">
+                                                <div className="font-bold mb-1 flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                                                    <span>🔥 Склад комбо:</span>
+                                                </div>
+                                                <div className="line-clamp-2 font-medium">
+                                                    {getFormulaSummary(parsedCombo.slots || [], parsedCombo.reward)}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Статистика */}
                                         <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-800">
                                             <span>Застосовано: <strong className="text-slate-800 dark:text-slate-200">{p.usageCount || 0}</strong> р.</span>
                                             <span>Знижка: <strong className="text-emerald-600 dark:text-emerald-400">{Number(p.totalDiscountGiven || 0).toLocaleString()} ₴</strong></span>
@@ -380,57 +661,57 @@ export default function AdminPromotions() {
                                     </div>
                                 </div>
 
-                                {/* Панель дій та перемикач активності */}
-                                <div className="pt-4 border-t border-slate-100 dark:border-slate-750 flex items-center justify-between">
-                                    {/* Перемикач */}
-                                    <button
-                                        onClick={() => handleToggle(p.id)}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                            p.active 
-                                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20' 
-                                                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
-                                        }`}
-                                    >
-                                        <span className={`w-2 h-2 rounded-full ${p.active ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                                        <span>{p.active ? 'Активна' : 'Прихована'}</span>
-                                    </button>
+                                {/* Панель дій */}
+                                <div className="p-5 pt-0">
+                                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                        <button
+                                            onClick={() => handleToggle(p.id)}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                p.active 
+                                                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20' 
+                                                    : 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
+                                            }`}
+                                        >
+                                            <span className={`w-2 h-2 rounded-full ${p.active ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                            <span>{p.active ? 'Активна' : 'Прихована'}</span>
+                                        </button>
 
-                                    {/* Кнопки редагування / видалення */}
-                                    <div className="flex items-center gap-1.5">
-                                        <button
-                                            onClick={() => openEditModal(p)}
-                                            className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                            title="Редагувати"
-                                        >
-                                            <PencilSquareIcon className="w-4 h-4 stroke-2" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(p.id, p.title)}
-                                            className="p-2 rounded-xl text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                                            title="Видалити"
-                                        >
-                                            <TrashIcon className="w-4 h-4 stroke-2" />
-                                        </button>
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                onClick={() => openEditModal(p)}
+                                                className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                title="Редагувати"
+                                            >
+                                                <PencilSquareIcon className="w-4 h-4 stroke-2" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(p.id, p.title)}
+                                                className="p-2 rounded-xl text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                                                title="Видалити"
+                                            >
+                                                <TrashIcon className="w-4 h-4 stroke-2" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
             {/* Модальне вікно Створення / Редагування */}
             {modalOpen && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
-                        {/* Шапка модалки */}
-                        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/80 dark:bg-slate-950/50">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
+                        {/* 1. Шапка модалки (завжди видима, shrink-0) */}
+                        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/80 dark:bg-slate-950/50 shrink-0">
                             <div>
                                 <h2 className="text-xl font-black text-slate-900 dark:text-white">
                                     {editingPromotion ? 'Редагування акції' : 'Створення нової акції'}
                                 </h2>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                    Заповніть параметри банера та умови для гостей
+                                    Налаштуйте тип акції, формулу комбо або знижку на замовлення
                                 </p>
                             </div>
                             <button
@@ -441,8 +722,65 @@ export default function AdminPromotions() {
                             </button>
                         </div>
 
-                        {/* Форма */}
-                        <form onSubmit={handleSave} className="p-6 overflow-y-auto space-y-4 text-sm flex-1">
+                        {/* 2. Тіло форми (прокручується всередині, кнопки футера не перекривають!) */}
+                        <form id="promo-form" onSubmit={handleSave} className="p-5 sm:p-6 overflow-y-auto space-y-5 text-sm flex-1">
+                            {/* Вибір типу акції */}
+                            <div>
+                                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-2">
+                                    Тип промоції *
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPromoType('ORDER_PERCENT')}
+                                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                                            promoType === 'ORDER_PERCENT'
+                                                ? 'border-emerald-600 dark:border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/50 ring-2 ring-emerald-500/20'
+                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                        }`}
+                                    >
+                                        <TagIcon className={`w-5 h-5 mb-1.5 ${promoType === 'ORDER_PERCENT' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+                                        <div>
+                                            <div className="font-bold text-xs text-slate-900 dark:text-white">Знижка % на чек</div>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Наприклад -15% ДН</div>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setPromoType('COMBO')}
+                                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                                            promoType === 'COMBO'
+                                                ? 'border-amber-600 dark:border-amber-500 bg-amber-50/70 dark:bg-amber-950/50 ring-2 ring-amber-500/20'
+                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                        }`}
+                                    >
+                                        <CubeIcon className={`w-5 h-5 mb-1.5 ${promoType === 'COMBO' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`} />
+                                        <div>
+                                            <div className="font-bold text-xs text-slate-900 dark:text-white">🔥 Комбо-набір</div>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Піца + Напій = Десерт</div>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setPromoType('INFO')}
+                                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                                            promoType === 'INFO'
+                                                ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/50 ring-2 ring-indigo-500/20'
+                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                        }`}
+                                    >
+                                        <InformationCircleIcon className={`w-5 h-5 mb-1.5 ${promoType === 'INFO' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                                        <div>
+                                            <div className="font-bold text-xs text-slate-900 dark:text-white">Інформаційна</div>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Банер / Новина</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Заголовок */}
                             <div>
                                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                                     Заголовок акції *
@@ -450,7 +788,7 @@ export default function AdminPromotions() {
                                 <input
                                     type="text"
                                     required
-                                    placeholder="наприклад: Знижка 15% до Дня народження"
+                                    placeholder="наприклад: Замов 2 піци та отримай каву або Знижка 15% до ДН"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
@@ -464,63 +802,589 @@ export default function AdminPromotions() {
                                     </label>
                                     <input
                                         type="text"
-                                        placeholder="🎂 СВЯТО, 🔥 -20%"
+                                        placeholder="🎂 СВЯТО, 🔥 КОМБО"
                                         value={badgeText}
                                         onChange={(e) => setBadgeText(e.target.value)}
                                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                        Знижка на чек (%)
-                                    </label>
-                                    <div className="relative">
+                                {promoType === 'ORDER_PERCENT' ? (
+                                    <div>
+                                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                            Знижка на чек (%) *
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="100"
+                                                required
+                                                placeholder="15"
+                                                value={discountPercent || ''}
+                                                onChange={(e) => setDiscountPercent(parseInt(e.target.value, 10) || 0)}
+                                                className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                                            />
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">%</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                            Сортування
+                                        </label>
                                         <input
                                             type="number"
                                             min="0"
-                                            max="100"
-                                            placeholder="0"
-                                            value={discountPercent}
-                                            onChange={(e) => setDiscountPercent(parseInt(e.target.value, 10) || 0)}
-                                            className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                                            value={displayOrder}
+                                            onChange={(e) => setDisplayOrder(parseInt(e.target.value, 10) || 0)}
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                                         />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">%</span>
                                     </div>
-                                </div>
+                                )}
 
-                                <div>
-                                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                        Сортування
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={displayOrder}
-                                        onChange={(e) => setDisplayOrder(parseInt(e.target.value, 10) || 0)}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                    URL зображення постера (співвідношення 16:9)
-                                </label>
-                                <input
-                                    type="url"
-                                    placeholder="https://images.unsplash.com/..."
-                                    value={imageUrl}
-                                    onChange={(e) => setImageUrl(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
-                                />
-                                {imageUrl && (
-                                    <div className="mt-2 relative aspect-[16/9] w-full max-h-36 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                        <img src={imageUrl} alt="Прев'ю" className="w-full h-full object-cover" />
+                                {promoType === 'ORDER_PERCENT' && (
+                                    <div>
+                                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                            Сортування
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={displayOrder}
+                                            onChange={(e) => setDisplayOrder(parseInt(e.target.value, 10) || 0)}
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                                        />
                                     </div>
                                 )}
                             </div>
 
+                            {/* КОНСТРУКТОР КОМБО (якщо promoType === 'COMBO') */}
+                            {promoType === 'COMBO' && (
+                                <div className="space-y-6 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-200">
+                                    {/* БЛОК А: ВИМОГИ ДО КОШИКА */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                                                    <span className="w-6 h-6 rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center text-xs">A</span>
+                                                    Що гість має замовити (Вимоги до кошика)
+                                                </h3>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                    Оберіть всю категорію або конкретні страви-аналоги (напр. обрані 3 піци з 5)
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {comboSlots.map((slot, sIdx) => (
+                                                <div
+                                                    key={slot.id}
+                                                    className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 relative"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                                                            Слот #{sIdx + 1}
+                                                        </span>
+                                                        {comboSlots.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeComboSlot(slot.id)}
+                                                                className="text-xs text-red-500 hover:text-red-700 font-medium"
+                                                            >
+                                                                Видалити слот
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                                Назва вимоги
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="наприклад: Піца на вибір, Напій"
+                                                                value={slot.name}
+                                                                onChange={(e) => updateComboSlot(slot.id, { name: e.target.value })}
+                                                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                                Кількість (шт.)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={slot.quantity}
+                                                                onChange={(e) => updateComboSlot(slot.id, { quantity: parseInt(e.target.value, 10) || 1 })}
+                                                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Перемикач: Вся категорія АБО Обрані товари */}
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                                                            Правило вибору страв для слоту:
+                                                        </label>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateComboSlot(slot.id, { selectionType: 'CATEGORY' })}
+                                                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                                    slot.selectionType === 'CATEGORY'
+                                                                        ? 'bg-indigo-600 text-white shadow-xs'
+                                                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                                                }`}
+                                                            >
+                                                                📂 Вся категорія
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateComboSlot(slot.id, { selectionType: 'ITEMS' })}
+                                                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                                    slot.selectionType === 'ITEMS'
+                                                                        ? 'bg-indigo-600 text-white shadow-xs'
+                                                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                                                }`}
+                                                            >
+                                                                🍕 Конкретні страви / аналоги
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Варіант 1: Вся категорія */}
+                                                    {slot.selectionType === 'CATEGORY' ? (
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                                Оберіть категорію:
+                                                            </label>
+                                                            <select
+                                                                value={slot.categoryId || ''}
+                                                                onChange={(e) => {
+                                                                    const cId = Number(e.target.value);
+                                                                    const cat = categories.find(c => c.id === cId);
+                                                                    updateComboSlot(slot.id, {
+                                                                        categoryId: cId,
+                                                                        categoryName: cat?.name
+                                                                    });
+                                                                }}
+                                                                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                                                            >
+                                                                {categories.map(c => (
+                                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        /* Варіант 2: Конкретні товари / аналоги */
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between text-xs">
+                                                                <span className="font-semibold text-slate-600 dark:text-slate-400">
+                                                                    Оберіть страви, що підходять під цей слот ({slot.itemIds.length} обрано):
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Обрані чіпси */}
+                                                            {slot.itemIds.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1.5 pb-1">
+                                                                    {slot.itemIds.map((itemId, idx) => (
+                                                                        <span
+                                                                            key={itemId}
+                                                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 text-xs font-bold"
+                                                                        >
+                                                                            <span>{slot.itemNames[idx] || `Страва #${itemId}`}</span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newItemIds = slot.itemIds.filter(id => id !== itemId);
+                                                                                    const newItemNames = slot.itemNames.filter((_, i) => i !== idx);
+                                                                                    updateComboSlot(slot.id, { itemIds: newItemIds, itemNames: newItemNames });
+                                                                                }}
+                                                                                className="hover:text-red-500"
+                                                                            >
+                                                                                <XMarkIcon className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Скрол-список страв для вибору з чекбоксами */}
+                                                            <div className="max-h-40 overflow-y-auto space-y-1 p-2 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
+                                                                {menuItems.map(item => {
+                                                                    const isChecked = slot.itemIds.includes(item.id);
+                                                                    return (
+                                                                        <label
+                                                                            key={item.id}
+                                                                            className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs"
+                                                                        >
+                                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={isChecked}
+                                                                                    onChange={(e) => {
+                                                                                        if (e.target.checked) {
+                                                                                            updateComboSlot(slot.id, {
+                                                                                                itemIds: [...slot.itemIds, item.id],
+                                                                                                itemNames: [...slot.itemNames, item.name]
+                                                                                            });
+                                                                                        } else {
+                                                                                            const idx = slot.itemIds.indexOf(item.id);
+                                                                                            updateComboSlot(slot.id, {
+                                                                                                itemIds: slot.itemIds.filter(id => id !== item.id),
+                                                                                                itemNames: slot.itemNames.filter((_, i) => i !== idx)
+                                                                                            });
+                                                                                        }
+                                                                                    }}
+                                                                                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                                                                                />
+                                                                                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
+                                                                                {item.categoryName && (
+                                                                                    <span className="text-[10px] text-slate-400">({item.categoryName})</span>
+                                                                                )}
+                                                                            </div>
+                                                                            <span className="text-slate-500 font-bold ml-2 shrink-0">{item.price} ₴</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={addComboSlot}
+                                            className="w-full py-2.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            <PlusIcon className="w-4 h-4 stroke-2" />
+                                            <span>+ Додати ще один слот вимог</span>
+                                        </button>
+                                    </div>
+
+                                    {/* БЛОК Б: ВИНАГОРОДА */}
+                                    <div className="space-y-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                        <div>
+                                            <h3 className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                                                <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">Б</span>
+                                                Винагорода для гостя
+                                            </h3>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                Що отримує гість (подарункова страва, фіксована спец-ціна або знижка)
+                                            </p>
+                                        </div>
+
+                                        {/* Тип винагороди */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setComboReward(prev => ({ ...prev, rewardType: 'FREE_ITEM' }))}
+                                                className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all ${
+                                                    comboReward.rewardType === 'FREE_ITEM'
+                                                        ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-200'
+                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                🎁 Подарунок (100% знижка)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setComboReward(prev => ({ ...prev, rewardType: 'FIXED_PRICE' }))}
+                                                className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all ${
+                                                    comboReward.rewardType === 'FIXED_PRICE'
+                                                        ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-800 dark:text-amber-200'
+                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                🏷️ Фіксована ціна за набір
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setComboReward(prev => ({ ...prev, rewardType: 'DISCOUNT_PERCENT' }))}
+                                                className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all ${
+                                                    comboReward.rewardType === 'DISCOUNT_PERCENT'
+                                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-800 dark:text-indigo-200'
+                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                % Знижка на комбо
+                                            </button>
+                                        </div>
+
+                                        {/* Налаштування подарунка */}
+                                        {comboReward.rewardType === 'FREE_ITEM' && (
+                                            <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 space-y-3">
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setComboReward(prev => ({ ...prev, selectionType: 'CATEGORY' }))}
+                                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                            comboReward.selectionType === 'CATEGORY'
+                                                                ? 'bg-emerald-600 text-white'
+                                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                                        }`}
+                                                    >
+                                                        📂 Будь-яка страва з категорії
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setComboReward(prev => ({ ...prev, selectionType: 'ITEMS' }))}
+                                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                            comboReward.selectionType === 'ITEMS'
+                                                                ? 'bg-emerald-600 text-white'
+                                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                                        }`}
+                                                    >
+                                                        🍰 Конкретна страва або на вибір
+                                                    </button>
+                                                </div>
+
+                                                {comboReward.selectionType === 'CATEGORY' ? (
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                            Подарункова категорія:
+                                                        </label>
+                                                        <select
+                                                            value={comboReward.categoryId || ''}
+                                                            onChange={(e) => {
+                                                                const cId = Number(e.target.value);
+                                                                const cat = categories.find(c => c.id === cId);
+                                                                setComboReward(prev => ({
+                                                                    ...prev,
+                                                                    categoryId: cId,
+                                                                    categoryName: cat?.name
+                                                                }));
+                            }}
+                                                            className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium"
+                                                        >
+                                                            {categories.map(c => (
+                                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        <span className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                                            Оберіть подарункові страви ({comboReward.itemIds.length} обрано):
+                                                        </span>
+
+                                                        {comboReward.itemIds.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1.5 pb-1">
+                                                                {comboReward.itemIds.map((itemId, idx) => (
+                                                                    <span
+                                                                        key={itemId}
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 text-xs font-bold"
+                                                                    >
+                                                                        <span>{comboReward.itemNames[idx] || `Страва #${itemId}`}</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setComboReward(prev => ({
+                                                                                    ...prev,
+                                                                                    itemIds: prev.itemIds.filter(id => id !== itemId),
+                                                                                    itemNames: prev.itemNames.filter((_, i) => i !== idx)
+                                                                                }));
+                                                                            }}
+                                                                            className="hover:text-red-500"
+                                                                        >
+                                                                            <XMarkIcon className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="max-h-36 overflow-y-auto space-y-1 p-2 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
+                                                            {menuItems.map(item => {
+                                                                const isChecked = comboReward.itemIds.includes(item.id);
+                                                                return (
+                                                                    <label
+                                                                        key={item.id}
+                                                                        className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs"
+                                                                    >
+                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isChecked}
+                                                                                onChange={(e) => {
+                                                                                    if (e.target.checked) {
+                                                                                        setComboReward(prev => ({
+                                                                                            ...prev,
+                                                                                            itemIds: [...prev.itemIds, item.id],
+                                                                                            itemNames: [...prev.itemNames, item.name]
+                                                                                        }));
+                                                                                    } else {
+                                                                                        const idx = comboReward.itemIds.indexOf(item.id);
+                                                                                        setComboReward(prev => ({
+                                                                                            ...prev,
+                                                                                            itemIds: prev.itemIds.filter(id => id !== item.id),
+                                                                                            itemNames: prev.itemNames.filter((_, i) => i !== idx)
+                                                                                        }));
+                                                                                    }
+                                                                                }}
+                                                                                className="rounded text-emerald-600 focus:ring-emerald-500"
+                                                                            />
+                                                                            <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
+                                                                        </div>
+                                                                        <span className="text-slate-400 font-bold ml-2 shrink-0">{item.price} ₴</span>
+                                                                    </label>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                        Кількість подарунків (шт.)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={comboReward.quantity}
+                                                        onChange={(e) => setComboReward(prev => ({ ...prev, quantity: parseInt(e.target.value, 10) || 1 }))}
+                                                        className="w-24 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {comboReward.rewardType === 'FIXED_PRICE' && (
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                    Фіксована спец-ціна за весь набір (₴) *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    required
+                                                    placeholder="наприклад: 249"
+                                                    value={comboReward.fixedPrice || ''}
+                                                    onChange={(e) => setComboReward(prev => ({ ...prev, fixedPrice: parseFloat(e.target.value) || 0 }))}
+                                                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold text-amber-600 dark:text-amber-400"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {comboReward.rewardType === 'DISCOUNT_PERCENT' && (
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                                                    Відсоток знижки на комбо (%) *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="100"
+                                                    required
+                                                    placeholder="наприклад: 20"
+                                                    value={comboReward.discountPercent || ''}
+                                                    onChange={(e) => setComboReward(prev => ({ ...prev, discountPercent: parseInt(e.target.value, 10) || 0 }))}
+                                                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold text-indigo-600 dark:text-indigo-400"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Прев'ю формули */}
+                                        <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
+                                            <span className="font-bold text-slate-900 dark:text-white block mb-1">✨ Прев'ю формули акції:</span>
+                                            <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400">
+                                                {getFormulaSummary(comboSlots, comboReward)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Постер акції */}
+                            <div>
+                                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    Постер акції (співвідношення 16:9)
+                                </label>
+                                
+                                {uploadingImage ? (
+                                    <div className="aspect-[16/9] w-full max-h-40 rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/30 flex flex-col items-center justify-center gap-2">
+                                        <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Завантаження зображення...</span>
+                                    </div>
+                                ) : imageUrl ? (
+                                    <div className="space-y-2">
+                                        <div className="relative aspect-[16/9] w-full max-h-44 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 group">
+                                            <img src={imageUrl} alt="Прев'ю" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                                <label className="px-3.5 py-2 rounded-xl bg-white text-slate-900 font-bold text-xs cursor-pointer shadow-md hover:bg-slate-100 transition-all flex items-center gap-1.5 active:scale-95">
+                                                    <PhotoIcon className="w-4 h-4 text-indigo-600" />
+                                                    <span>Замінити файл</span>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                                                        onChange={handleImageUpload}
+                                                        className="hidden"
+                                                    />
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setImageUrl('')}
+                                                    className="px-3.5 py-2 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md hover:bg-red-500 transition-all flex items-center gap-1.5 active:scale-95"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                    <span>Видалити</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                            <span className="shrink-0 font-medium">Шлях/URL:</span>
+                                            <input
+                                                type="text"
+                                                value={imageUrl}
+                                                onChange={(e) => setImageUrl(e.target.value)}
+                                                className="flex-1 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-[11px] truncate focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                placeholder="URL або шлях до файлу"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-2xl p-5 text-center transition-all bg-slate-50/50 dark:bg-slate-800/40">
+                                            <PhotoIcon className="w-9 h-9 text-slate-400 mx-auto mb-2" />
+                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                                Завантажте фотографію для постера
+                                            </p>
+                                            <p className="text-[11px] text-slate-400 mb-3">
+                                                Підтримуються формати JPG, PNG, WEBP (рекомендовано 16:9)
+                                            </p>
+                                            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer shadow-md shadow-indigo-600/20 active:scale-95 transition-all">
+                                                <ArrowUpTrayIcon className="w-4 h-4 stroke-2" />
+                                                <span>Обрати файл з комп'ютера</span>
+                                                <input
+                                                    type="file"
+                                                    ref={fileInputRef}
+                                                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                                                    onChange={handleImageUpload}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
+                                            <span className="shrink-0">Або вкажіть URL:</span>
+                                            <input
+                                                type="url"
+                                                placeholder="https://images.unsplash.com/..."
+                                                value={imageUrl}
+                                                onChange={(e) => setImageUrl(e.target.value)}
+                                                className="flex-1 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Короткий слоган */}
                             <div>
                                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                                     Короткий слоган для слайдера
@@ -534,12 +1398,13 @@ export default function AdminPromotions() {
                                 />
                             </div>
 
+                            {/* Повний текст умов */}
                             <div>
                                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                                     Повний текст умов акції (відкривається при кліку)
                                 </label>
                                 <textarea
-                                    rows={4}
+                                    rows={3}
                                     placeholder="Детальні правила: дні дії, час, необхідні документи, обмеження..."
                                     value={fullContent}
                                     onChange={(e) => setFullContent(e.target.value)}
@@ -547,11 +1412,11 @@ export default function AdminPromotions() {
                                 />
                             </div>
 
-                            {/* Блок вибору CTA */}
-                            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                                <div>
-                                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-2">
-                                        Цільова дія клієнта (Call to Action)
+                            {/* CTA блок (для банера слайдера) */}
+                            {promoType !== 'COMBO' && (
+                                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+                                        Цільова дія клієнта на банері (Call to Action)
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                         <button
@@ -602,190 +1467,190 @@ export default function AdminPromotions() {
                                             </div>
                                         </button>
                                     </div>
-                                </div>
 
-                                {/* Інтерактивний вибір страви */}
-                                {actionType === 'MENU_ITEM' && (
-                                    <div className="space-y-2 pt-1 animate-in fade-in duration-200">
-                                        <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
-                                            Прив'язана страва з меню *
-                                        </label>
+                                    {/* Інтерактивний вибір страви */}
+                                    {actionType === 'MENU_ITEM' && (
+                                        <div className="space-y-2 pt-1 animate-in fade-in duration-200">
+                                            <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+                                                Прив'язана страва з меню *
+                                            </label>
 
-                                        {selectedDish && !isDishDropdownOpen ? (
-                                            /* Картка обраної страви */
-                                            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/90 border border-emerald-500/30 dark:border-emerald-500/40">
-                                                <div className="flex items-center gap-3 min-w-0">
-                                                    {selectedDish.imageUrl ? (
-                                                        <img src={selectedDish.imageUrl} alt={selectedDish.name} className="w-11 h-11 rounded-xl object-cover shrink-0" />
-                                                    ) : (
-                                                        <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-400">
-                                                            <ShoppingBagIcon className="w-5 h-5" />
-                                                        </div>
-                                                    )}
-                                                    <div className="min-w-0">
-                                                        <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                                                            {selectedDish.name}
-                                                        </div>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                                                {selectedDish.price} ₴
-                                                            </span>
-                                                            {selectedDish.categoryName && (
-                                                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
-                                                                    {selectedDish.categoryName}
+                                            {selectedDish && !isDishDropdownOpen ? (
+                                                <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/90 border border-emerald-500/30 dark:border-emerald-500/40">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        {selectedDish.imageUrl ? (
+                                                            <img src={selectedDish.imageUrl} alt={selectedDish.name} className="w-11 h-11 rounded-xl object-cover shrink-0" />
+                                                        ) : (
+                                                            <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-400">
+                                                                <ShoppingBagIcon className="w-5 h-5" />
+                                                            </div>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                                                                {selectedDish.name}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                                                    {selectedDish.price} ₴
                                                                 </span>
-                                                            )}
+                                                                {selectedDish.categoryName && (
+                                                                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
+                                                                        {selectedDish.categoryName}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setIsDishDropdownOpen(true)}
-                                                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors shadow-2xs"
-                                                    >
-                                                        Змінити
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTargetMenuItemId('')}
-                                                        className="p-1.5 rounded-xl text-slate-400 hover:text-red-500 transition-colors"
-                                                        title="Очистити вибір"
-                                                    >
-                                                        <XMarkIcon className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            /* Пошуковий селектор страв */
-                                            <div className="space-y-2 rounded-2xl p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                                                <div className="relative">
-                                                    <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Пошук страви за назвою або категорією..."
-                                                        value={dishSearch}
-                                                        onChange={(e) => setDishSearch(e.target.value)}
-                                                        className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                        autoFocus
-                                                    />
-                                                    {dishSearch && (
+                                                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                                                         <button
                                                             type="button"
-                                                            onClick={() => setDishSearch('')}
-                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                                            onClick={() => setIsDishDropdownOpen(true)}
+                                                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors shadow-2xs"
                                                         >
-                                                            <XMarkIcon className="w-3.5 h-3.5" />
+                                                            Змінити
                                                         </button>
-                                                    )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setTargetMenuItemId('')}
+                                                            className="p-1.5 rounded-xl text-slate-400 hover:text-red-500 transition-colors"
+                                                            title="Очистити вибір"
+                                                        >
+                                                            <XMarkIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
+                                            ) : (
+                                                <div className="space-y-2 rounded-2xl p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                                                    <div className="relative">
+                                                        <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Пошук страви за назвою або категорією..."
+                                                            value={dishSearch}
+                                                            onChange={(e) => setDishSearch(e.target.value)}
+                                                            className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                            autoFocus
+                                                        />
+                                                        {dishSearch && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setDishSearch('')}
+                                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                                            >
+                                                                <XMarkIcon className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
 
-                                                <div className="max-h-48 overflow-y-auto space-y-1 rounded-xl p-1 bg-white/60 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
-                                                    {filteredDishes.length === 0 ? (
-                                                        <div className="text-center py-4 text-xs text-slate-400">
-                                                            Страв не знайдено
-                                                        </div>
-                                                    ) : (
-                                                        filteredDishes.map((item) => {
-                                                            const isSelected = item.id === targetMenuItemId;
-                                                            return (
-                                                                <button
-                                                                    key={item.id}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setTargetMenuItemId(item.id);
-                                                                        setIsDishDropdownOpen(false);
-                                                                        setDishSearch('');
-                                                                    }}
-                                                                    className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors ${
-                                                                        isSelected
-                                                                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700'
-                                                                            : 'hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200'
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center gap-2.5 min-w-0">
-                                                                        {item.imageUrl ? (
-                                                                            <img src={item.imageUrl} alt={item.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                                                                        ) : (
-                                                                            <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-400">
-                                                                                <ShoppingBagIcon className="w-4 h-4" />
-                                                                            </div>
-                                                                        )}
-                                                                        <div className="min-w-0">
-                                                                            <div className="font-semibold text-xs leading-tight truncate">
-                                                                                {item.name}
-                                                                            </div>
-                                                                            {item.categoryName && (
-                                                                                <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                                                                                    {item.categoryName}
+                                                    <div className="max-h-48 overflow-y-auto space-y-1 rounded-xl p-1 bg-white/60 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+                                                        {filteredDishes.length === 0 ? (
+                                                            <div className="text-center py-4 text-xs text-slate-400">
+                                                                Страв не знайдено
+                                                            </div>
+                                                        ) : (
+                                                            filteredDishes.map((item) => {
+                                                                const isSelected = item.id === targetMenuItemId;
+                                                                return (
+                                                                    <button
+                                                                        key={item.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setTargetMenuItemId(item.id);
+                                                                            setIsDishDropdownOpen(false);
+                                                                            setDishSearch('');
+                                                                        }}
+                                                                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors ${
+                                                                            isSelected
+                                                                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700'
+                                                                                : 'hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                                            {item.imageUrl ? (
+                                                                                <img src={item.imageUrl} alt={item.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                                                                            ) : (
+                                                                                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-slate-400">
+                                                                                    <ShoppingBagIcon className="w-4 h-4" />
                                                                                 </div>
                                                                             )}
+                                                                            <div className="min-w-0">
+                                                                                <div className="font-semibold text-xs leading-tight truncate">
+                                                                                    {item.name}
+                                                                                </div>
+                                                                                {item.categoryName && (
+                                                                                    <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                                                                                        {item.categoryName}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                                                                        <span className="font-bold text-xs text-slate-900 dark:text-white">
-                                                                            {item.price} ₴
-                                                                        </span>
-                                                                        {isSelected && (
-                                                                            <CheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-2" />
-                                                                        )}
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })
+                                                                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                                                                            <span className="font-bold text-xs text-slate-900 dark:text-white">
+                                                                                {item.price} ₴
+                                                                            </span>
+                                                                            {isSelected && (
+                                                                                <CheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-2" />
+                                                                            )}
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+
+                                                    {selectedDish && (
+                                                        <div className="flex justify-end pt-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setIsDishDropdownOpen(false)}
+                                                                className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
+                                                            >
+                                                                Скасувати зміну
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
-
-                                                {selectedDish && (
-                                                    <div className="flex justify-end pt-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setIsDishDropdownOpen(false)}
-                                                            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
-                                                        >
-                                                            Скасувати зміну
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="flex items-center gap-3 pt-2">
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={active}
-                                            onChange={(e) => setActive(e.target.checked)}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                                        <span className="ml-3 text-sm font-bold text-slate-700 dark:text-slate-300">
-                                            Активувати показ на слайдері гостя
-                                        </span>
-                                    </label>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Кнопки футера */}
-                            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-slate-900">
-                                <button
-                                    type="button"
-                                    onClick={() => setModalOpen(false)}
-                                    className="px-4 py-2.5 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                                >
-                                    Скасувати
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-6 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md active:scale-95 disabled:opacity-50"
-                                >
-                                    {submitting ? 'Збереження...' : (editingPromotion ? 'Оновити акцію' : 'Створити')}
-                                </button>
+                            {/* Активність */}
+                            <div className="pt-2">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={active}
+                                        onChange={(e) => setActive(e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                    <span className="ml-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                                        Активувати акцію (видима для гостей та офіціантів)
+                                    </span>
+                                </label>
                             </div>
                         </form>
+
+                        {/* 3. Статичний Футер (завжди внизу, shrink-0, нічого не перекриває!) */}
+                        <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setModalOpen(false)}
+                                className="px-5 py-2.5 rounded-xl font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            >
+                                Скасувати
+                            </button>
+                            <button
+                                form="promo-form"
+                                type="submit"
+                                disabled={submitting}
+                                className="px-6 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                            >
+                                {submitting ? 'Збереження...' : (editingPromotion ? 'Оновити акцію' : 'Створити')}
+                            </button>
+                        </div>
                     </div>
                 </div>,
                 document.body

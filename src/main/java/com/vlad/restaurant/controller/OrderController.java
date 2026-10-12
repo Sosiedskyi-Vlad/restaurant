@@ -143,12 +143,13 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/apply-promotion")
-    @PreAuthorize("hasAnyRole('WAITER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('WAITER', 'ADMIN', 'GUEST')")
     public OrderResponse applyPromotion(
             @PathVariable UUID id,
-            @RequestBody(required = false) ApplyPromotionRequest request
+            @RequestBody(required = false) ApplyPromotionRequest request,
+            Authentication auth
     ) {
         UUID promoId = request != null ? request.promotionId() : null;
-        return orderService.applyPromotion(id, promoId);
+        return orderService.applyPromotion(id, promoId, auth);
     }
 }

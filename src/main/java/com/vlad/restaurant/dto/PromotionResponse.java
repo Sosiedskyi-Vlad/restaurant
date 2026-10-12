@@ -21,7 +21,9 @@ public record PromotionResponse(
         Integer discountPercent,
         int usageCount,
         BigDecimal totalDiscountGiven,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String promoType,
+        String comboConfig
 ) {
     public static PromotionResponse from(Promotion p, String menuItemName) {
         return new PromotionResponse(
@@ -39,7 +41,9 @@ public record PromotionResponse(
                 p.getDiscountPercent() != null ? p.getDiscountPercent() : 0,
                 p.getUsageCount(),
                 p.getTotalDiscountGiven() != null ? p.getTotalDiscountGiven() : BigDecimal.ZERO,
-                p.getCreatedAt()
+                p.getCreatedAt(),
+                p.getPromoType() != null ? p.getPromoType() : "ORDER_PERCENT",
+                p.getComboConfig()
         );
     }
 }

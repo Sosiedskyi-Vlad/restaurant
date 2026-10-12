@@ -23,14 +23,17 @@ export interface PromotionItem {
     targetMenuItemName?: string;
     active: boolean;
     displayOrder: number;
+    promoType?: 'ORDER_PERCENT' | 'COMBO' | 'INFO';
+    comboConfig?: string;
 }
 
 interface PromoCarouselProps {
     onSelectMenuItem?: (menuItemId: number) => void;
+    onSelectCategory?: (category: string) => void;
     onCallWaiter?: () => void;
 }
 
-export default function PromoCarousel({ onSelectMenuItem, onCallWaiter }: PromoCarouselProps) {
+export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCallWaiter }: PromoCarouselProps) {
     const [promotions, setPromotions] = useState<PromotionItem[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -91,7 +94,10 @@ export default function PromoCarousel({ onSelectMenuItem, onCallWaiter }: PromoC
     };
 
     const handlePromoCta = (promo: PromotionItem) => {
-        if (promo.actionType === 'MENU_ITEM' && promo.targetMenuItemId && onSelectMenuItem) {
+        if (promo.promoType === 'COMBO' && onSelectCategory) {
+            setSelectedPromo(null);
+            onSelectCategory('🔥 Комбо');
+        } else if (promo.actionType === 'MENU_ITEM' && promo.targetMenuItemId && onSelectMenuItem) {
             setSelectedPromo(null);
             onSelectMenuItem(promo.targetMenuItemId);
         } else if (promo.actionType === 'CALL_WAITER') {
@@ -101,7 +107,7 @@ export default function PromoCarousel({ onSelectMenuItem, onCallWaiter }: PromoC
         }
     };
 
-    const triggerCallWaiter = (promoTitle: string) => {
+    const triggerCallWaiter = (_promoTitle: string) => {
         setCallingWaiter(true);
         api.post('/service-calls', { type: 'WAITER' })
             .then(() => {
@@ -122,15 +128,13 @@ export default function PromoCarousel({ onSelectMenuItem, onCallWaiter }: PromoC
     const currentPromo = promotions[currentIndex];
 
     return (
-        <div className="relative mb-6">
-            {/* Контейнер каруселі */}
+        <div className="relative select-none">
+            {/* Головний слайдер */}
             <div
-                className="relative aspect-[2/1] sm:aspect-[2.2/1] w-full rounded-[2rem] overflow-hidden shadow-md cursor-pointer select-none group"
-                onMouseEnter={() => setIsPaused(true)}
-                onMouseLeave={() => setIsPaused(false)}
+                className="relative aspect-[16/9] w-full rounded-3xl overflow-hidden shadow-lg cursor-pointer group bg-slate-900 border border-slate-200/50 dark:border-slate-800"
+                onClick={() => setSelectedPromo(currentPromo)}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
-                onClick={() => setSelectedPromo(currentPromo)}
             >
                 {/* Зображення банера */}
                 <img
@@ -284,35 +288,42 @@ export default function PromoCarousel({ onSelectMenuItem, onCallWaiter }: PromoC
 
                         {/* Футер дій */}
                         <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex flex-col gap-2.5">
-                            {/* CTA Кнопка */}
-                            {selectedPromo.actionType === 'MENU_ITEM' && selectedPromo.targetMenuItemId && (
+                            {selectedPromo.promoType === 'COMBO' && (
                                 <button
                                     onClick={() => handlePromoCta(selectedPromo)}
-                                    className="w-full py-3.5 rounded-2xl font-black text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center gap-2 transition-all active:scale-95"
+                                    className="w-full bg-amber-500 hover:bg-amber-600 text-white p-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-98"
                                 >
-                                    <ShoppingBagIcon className="w-5 h-5" />
-                                    <span>
-                                        Замовити страву {selectedPromo.targetMenuItemName ? `«${selectedPromo.targetMenuItemName}»` : ''}
-                                    </span>
+                                    <span>🔥 Переглянути комбо в меню</span>
+                                    <span>→</span>
                                 </button>
                             )}
 
+                            {/* CTA Кнопка страви */}
+                            {selectedPromo.actionType === 'MENU_ITEM' && selectedPromo.targetMenuItemId && (
+                                <button
+                                    onClick={() => handlePromoCta(selectedPromo)}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white p-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-98"
+                                >
+                                    <ShoppingBagIcon className="w-5 h-5" />
+                                    <span>Замовити акційну страву</span>
+                                </button>
+                            )}
+
+                            {/* CTA Кнопка виклику офіціанта */}
                             {selectedPromo.actionType === 'CALL_WAITER' && (
                                 <button
                                     onClick={() => handlePromoCta(selectedPromo)}
                                     disabled={callingWaiter || callSuccess}
-                                    className="w-full py-3.5 rounded-2xl font-black text-sm bg-amber-500 hover:bg-amber-400 text-white shadow-md shadow-amber-500/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                                    className="w-full bg-amber-500 hover:bg-amber-600 text-white p-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-98 disabled:opacity-50"
                                 >
-                                    <BellAlertIcon className="w-5 h-5 stroke-2" />
-                                    <span>
-                                        {callingWaiter ? 'Повідомляємо...' : (callSuccess ? '✓ Офіціант повідомлений!' : 'Повідомити офіціанта про акцію')}
-                                    </span>
+                                    <BellAlertIcon className="w-5 h-5" />
+                                    <span>{callingWaiter ? 'Повідомляємо...' : (callSuccess ? 'Офіціант прямує!' : 'Покликати офіціанта для активації')}</span>
                                 </button>
                             )}
 
                             <button
                                 onClick={() => setSelectedPromo(null)}
-                                className="w-full py-3 rounded-2xl font-bold text-xs bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                                className="w-full py-2.5 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             >
                                 Закрити
                             </button>

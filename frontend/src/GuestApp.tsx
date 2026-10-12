@@ -5,7 +5,25 @@ import { createPortal } from 'react-dom';
 import { api } from './api';
 import { getStompClient, onWsConnect } from './ws';
 import { useTheme } from './ThemeToggle';
-import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon, WifiIcon, ClockIcon, MapPinIcon, PhoneIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import {
+    BellIcon,
+    CreditCardIcon,
+    CheckCircleIcon,
+    FireIcon,
+    InformationCircleIcon,
+    BanknotesIcon,
+    WifiIcon,
+    ClockIcon,
+    MapPinIcon,
+    PhoneIcon,
+    SunIcon,
+    MoonIcon,
+    SparklesIcon,
+    GiftIcon,
+    TagIcon,
+    CheckIcon,
+    XMarkIcon
+} from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
 
@@ -45,78 +63,57 @@ function CallWaiterButton() {
         api.get('/service-calls/my').then(res => setCalling(res.data.length > 0));
         const client = getStompClient();
         if (!client) return;
-        const unsubConnect = onWsConnect(() => {
-            client.subscribe('/user/queue/service-calls', (m) => {
-                const body = JSON.parse(m.body);
-                if (body.type === 'CALL_CREATED') setCalling(true);
-                if (body.type === 'CALL_RESOLVED') setCalling(false);
-            });
-        });
+        const unsubConnect = onWsConnect(() => client.subscribe('/user/queue/service-calls', (msg) => {
+            const data = JSON.parse(msg.body);
+            if (data.type === 'RESOLVED') {
+                setCalling(false);
+            }
+        }));
         return () => { unsubConnect(); if (client.connected) client.unsubscribe('/user/queue/service-calls'); };
     }, []);
 
-    const call = () => {
-        if (calling) {
-            setCalling(false);
-            api.delete('/service-calls/my').catch(() => setCalling(true));
-            return;
-        }
-        
+    const call = async () => {
+        if (calling) return;
         setCalling(true);
         setShowToast(true);
-        setTimeout(() => setShowToast(false), 4000);
-        
-        api.post('/service-calls', { type: 'WAITER' })
-           .catch(() => {
-               setCalling(false);
-               setShowToast(false);
-               alert('Помилка при виклику офіціанта');
-           });
+        setTimeout(() => setShowToast(false), 3000);
+        try {
+            await api.post('/service-calls', { type: 'WAITER' });
+        } catch(e) { setCalling(false); }
     };
 
     return (
         <>
-            <button
-                onClick={call}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 text-xs font-bold shadow-xs active:scale-95 ${
-                    calling
-                        ? 'bg-amber-500 text-white shadow-amber-500/30 ring-4 ring-amber-500/20 animate-pulse'
-                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 ring-1 ring-slate-200 dark:ring-slate-700/80 hover:scale-105'
+            <button 
+                onClick={call} 
+                disabled={calling}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer ${
+                    calling 
+                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30 animate-pulse' 
+                        : 'bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 shadow-xs active:scale-95'
                 }`}
-                title={calling ? 'Натисніть, щоб скасувати виклик' : 'Покликати офіціанта до вашого столу'}
+                aria-label="Викликати офіціанта"
             >
-                <BellIcon className={`w-4 h-4 shrink-0 ${calling ? 'animate-wiggle text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <BellIcon className={`w-4 h-4 stroke-2 ${calling ? 'text-white animate-bounce' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span>{calling ? 'Офіціант іде...' : 'Офіціант'}</span>
-                {calling && (
-                    <span className="relative flex h-2 w-2 ml-0.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                    </span>
-                )}
             </button>
-            
-            {showToast && createPortal(
-                <div className="fixed bottom-10 inset-x-0 mx-auto z-[100] flex justify-center px-6 pointer-events-none animate-slideUpFade w-full max-w-md">
-                    <div className="bg-emerald-500 text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-3 w-full border border-emerald-400">
-                        <CheckCircleIcon className="w-8 h-8 text-emerald-100 shrink-0" />
-                        <div>
-                            <div className="font-bold text-lg leading-tight">Офіціант вже в дорозі!</div>
-                            <div className="text-emerald-50 text-sm font-medium mt-0.5">Будь ласка, зачекайте хвилиночку</div>
-                        </div>
-                    </div>
-                </div>,
-                document.body
+
+            {showToast && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-xl border border-white/10 flex items-center gap-2.5 text-xs font-semibold animate-slideUpFade">
+                    <CheckCircleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <span>Офіціант повідомлений та вже прямує до вашого столу!</span>
+                </div>
             )}
         </>
     );
 }
 
-// Новий тип для корзини з опціями
+// Тип для корзини з опціями
 type CartItem = {
     cartId: string;
     menuItemId: number;
     name: string;
-    price: number; // Ціна за 1 шт (з урахуванням опцій)
+    price: number;
     quantity: number;
     options: Record<string, string[]>;
 };
@@ -125,6 +122,8 @@ function GuestFlow() {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
     const [targetPromoMenuItemId, setTargetPromoMenuItemId] = useState<number | null>(null);
+    const [targetCategory, setTargetCategory] = useState<string | null>(null);
+    const [lastComboPromoId, setLastComboPromoId] = useState<string | null>(null);
 
     const fetchOrders = () => api.get('/orders/my').then(res => setOrders(res.data));
     useEffect(() => {
@@ -136,7 +135,6 @@ function GuestFlow() {
     }, []);
 
     const sendOrder = async () => {
-        // Формуємо запит за новим форматом
         const payloadItems = cart.map(c => ({
             menuItemId: c.menuItemId,
             quantity: c.quantity,
@@ -146,7 +144,13 @@ function GuestFlow() {
         if (!payloadItems.length) return;
         
         try {
-            await api.post('/orders', { items: payloadItems });
+            const res = await api.post('/orders', { items: payloadItems });
+            if (lastComboPromoId) {
+                try {
+                    await api.post(`/orders/${res.data.id}/apply-promotion`, { promotionId: lastComboPromoId });
+                } catch(e) {}
+                setLastComboPromoId(null);
+            }
             setCart([]);
             fetchOrders();
         } catch(e:any) { alert(e.response?.data?.message || 'Помилка замовлення'); }
@@ -157,18 +161,24 @@ function GuestFlow() {
 
     return (
         <div className="space-y-8 relative">
-            <PromoCarousel onSelectMenuItem={(id) => setTargetPromoMenuItemId(id)} />
-            {orders.length > 0 && <ActiveOrders orders={orders} />}
+            <PromoCarousel 
+                onSelectMenuItem={(id) => setTargetPromoMenuItemId(id)} 
+                onSelectCategory={(cat) => setTargetCategory(cat)}
+            />
+            {orders.length > 0 && <ActiveOrders orders={orders} onOrderUpdated={fetchOrders} />}
             <Menu 
                 cart={cart} 
                 setCart={setCart} 
                 targetPromoMenuItemId={targetPromoMenuItemId} 
-                clearTargetPromo={() => setTargetPromoMenuItemId(null)} 
+                clearTargetPromo={() => setTargetPromoMenuItemId(null)}
+                targetCategory={targetCategory}
+                clearTargetCategory={() => setTargetCategory(null)}
+                onSelectComboForOrder={(promoId) => setLastComboPromoId(promoId)}
             />
             
             {count > 0 && (
                 <div className="fixed bottom-6 left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
-                    <button onClick={sendOrder} className="w-full glass-dark dark:bg-indigo-600/90 dark:border-indigo-400/30 text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform shadow-2xl">
+                    <button onClick={sendOrder} className="w-full glass-dark dark:bg-indigo-600/90 dark:border-indigo-400/30 text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform shadow-2xl cursor-pointer">
                         <div className="flex justify-between items-center w-full">
                             <div className="flex items-center gap-3">
                                 <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
@@ -183,8 +193,15 @@ function GuestFlow() {
     );
 }
 
-function ActiveOrders({ orders }: { orders: any[] }) {
+function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdated?: () => void }) {
     const [checkingOut, setCheckingOut] = useState<string | null>(null);
+    const [promosModalOrderId, setPromosModalOrderId] = useState<string | null>(null);
+    const [activePromotions, setActivePromotions] = useState<any[]>([]);
+    const [applyingPromo, setApplyingPromo] = useState(false);
+
+    useEffect(() => {
+        api.get('/promotions/active').then(res => setActivePromotions(res.data)).catch(() => {});
+    }, []);
 
     const pay = async (orderId: string) => {
         try {
@@ -213,6 +230,19 @@ function ActiveOrders({ orders }: { orders: any[] }) {
         } catch(e) { return null; }
     };
 
+    const handleApplyPromotion = async (orderId: string, promotionId: string) => {
+        setApplyingPromo(true);
+        try {
+            await api.post(`/orders/${orderId}/apply-promotion`, { promotionId });
+            setPromosModalOrderId(null);
+            if (onOrderUpdated) onOrderUpdated();
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Помилка застосування акції');
+        } finally {
+            setApplyingPromo(false);
+        }
+    };
+
     return (
         <div className="space-y-4">
             <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -220,11 +250,11 @@ function ActiveOrders({ orders }: { orders: any[] }) {
             </h2>
             <div className="space-y-4">
                 {orders.map(o => (
-                    <div key={o.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 shadow-xs border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl ${
+                    <div key={o.id} className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs relative">
+                        <div className="flex justify-between items-start mb-3">
+                            <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
                                 o.status === 'NEW' 
-                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 ring-1 ring-blue-100 dark:ring-blue-900/40' 
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' 
                                     : o.status === 'PREPARING' 
                                         ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 ring-1 ring-amber-100 dark:ring-amber-900/40' 
                                         : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-900/40'
@@ -295,35 +325,54 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                             </div>
                         )}
 
+                        {/* Кнопка активації акції або виклику офіціанта */}
                         {!o.paid && (!o.discountAmount || o.discountAmount === 0) && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    api.post("/service-calls", { type: "WAITER" })
-                                        .then(() => alert("Офіціанта викликано до вашого столу для перевірки та активації святкової знижки!"))
-                                        .catch(() => alert("Помилка виклику офіціанта"));
-                                }}
-                                className="w-full mb-3 p-2.5 rounded-2xl bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-between transition-colors active:scale-98"
-                            >
-                                <span className="flex items-center gap-1.5">
-                                    <span>🎂</span>
-                                    <span>У вас День народження чи свято?</span>
-                                </span>
-                                <span className="text-[11px] underline font-bold text-amber-700 dark:text-amber-300">
-                                    Повідомити офіціанта →
-                                </span>
-                            </button>
+                            <div className="mb-3 space-y-2">
+                                {activePromotions.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setPromosModalOrderId(o.id)}
+                                        className="w-full p-2.5 rounded-2xl bg-indigo-50/80 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            <span>✨</span>
+                                            <span>Застосувати акцію або комбо</span>
+                                        </span>
+                                        <span className="text-[11px] underline font-bold text-indigo-700 dark:text-indigo-300">
+                                            Обрати акцію →
+                                        </span>
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        api.post("/service-calls", { type: "WAITER" })
+                                            .then(() => alert("Офіціанта викликано до вашого столу для перевірки та активації святкової знижки!"))
+                                            .catch(() => alert("Помилка виклику офіціанта"));
+                                    }}
+                                    className="w-full p-2.5 rounded-2xl bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
+                                >
+                                    <span className="flex items-center gap-1.5">
+                                        <span>🎂</span>
+                                        <span>У вас День народження чи свято?</span>
+                                    </span>
+                                    <span className="text-[11px] underline font-bold text-amber-700 dark:text-amber-300">
+                                        Повідомити офіціанта →
+                                    </span>
+                                </button>
+                            </div>
                         )}
 
                         {!o.paid ? (
                             <div className="flex flex-col gap-2 mt-4">
-                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-xs">
+                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-xs cursor-pointer">
                                     <CreditCardIcon className="w-5 h-5" />
                                     {checkingOut === o.id ? 'Зачекайте...' : `Оплатити онлайн ${o.total} ₴ (LiqPay)`}
                                 </button>
                                 <button onClick={() => {
                                     api.post('/service-calls', { type: 'BILL' }).then(() => alert('Офіціант зараз підійде з рахунком!'));
-                                }} className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                }} className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">
                                     <BanknotesIcon className="w-5 h-5" />
                                     Готівкою або терміналом
                                 </button>
@@ -336,6 +385,46 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                     </div>
                 ))}
             </div>
+
+            {/* Модалка вибору акції для замовлення */}
+            {promosModalOrderId && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in" onClick={() => setPromosModalOrderId(null)}>
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center">
+                            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Доступні акції</h3>
+                            <button onClick={() => setPromosModalOrderId(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-2 max-h-72 overflow-y-auto">
+                            {activePromotions.map(p => (
+                                <button
+                                    key={p.id}
+                                    disabled={applyingPromo}
+                                    onClick={() => handleApplyPromotion(promosModalOrderId, p.id)}
+                                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+                                >
+                                    <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center justify-between">
+                                        <span>{p.title}</span>
+                                        {p.promoType === 'COMBO' ? (
+                                            <span className="text-[10px] text-amber-500 font-extrabold">🔥 КОМБО</span>
+                                        ) : p.discountPercent > 0 ? (
+                                            <span className="text-[10px] text-emerald-600 font-extrabold">-{p.discountPercent}%</span>
+                                        ) : null}
+                                    </div>
+                                    {p.shortDescription && (
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                                            {p.shortDescription}
+                                        </p>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
@@ -344,27 +433,49 @@ function Menu({
     cart, 
     setCart,
     targetPromoMenuItemId,
-    clearTargetPromo
+    clearTargetPromo,
+    targetCategory,
+    clearTargetCategory,
+    onSelectComboForOrder
 }: { 
     cart: CartItem[]; 
     setCart: any;
     targetPromoMenuItemId?: number | null;
     clearTargetPromo?: () => void;
+    targetCategory?: string | null;
+    clearTargetCategory?: () => void;
+    onSelectComboForOrder?: (promoId: string) => void;
 }) {
     const [items, setItems] = useState<any[]>([]);
+    const [comboPromotions, setComboPromotions] = useState<any[]>([]);
     const [activeCategory, setActiveCategory] = useState<string>('');
-    const [selectedItem, setSelectedItem] = useState<any>(null); // Для модалки
+    const [selectedItem, setSelectedItem] = useState<any>(null);
     const [likedItems, setLikedItems] = useState<Set<number>>(new Set());
     
-    // Стейт для опцій в модалці
+    // Стан для опцій у модалці страви
     const [modalOptions, setModalOptions] = useState<Record<string, string[]>>({});
     const [modalPrice, setModalPrice] = useState<number>(0);
 
+    // Стан для модалки збирання комбо
+    const [activeComboModal, setActiveComboModal] = useState<any>(null);
+    const [comboSlotSelections, setComboSlotSelections] = useState<Record<string, number>>({});
+    const [comboRewardSelection, setComboRewardSelection] = useState<number | null>(null);
+
     useEffect(() => { 
-        api.get('/menu/items').then(res => {
-            setItems(res.data);
-            const cats = Array.from(new Set(res.data.filter((i:any) => i.isAvailable).map((i:any) => i.categoryName)));
-            if (cats.length > 0) setActiveCategory(cats[0] as string);
+        Promise.all([
+            api.get('/menu/items'),
+            api.get('/promotions/active').catch(() => ({ data: [] }))
+        ]).then(([itemsRes, promosRes]) => {
+            setItems(itemsRes.data || []);
+            const combos = (promosRes.data || []).filter((p: any) => p.promoType === 'COMBO');
+            setComboPromotions(combos);
+
+            const normalCats = Array.from(new Set((itemsRes.data || []).filter((i:any) => i.isAvailable).map((i:any) => i.categoryName)));
+            if (combos.length > 0) {
+                setActiveCategory('🔥 Комбо');
+            } else if (normalCats.length > 0) {
+                setActiveCategory(normalCats[0] as string);
+            }
         }); 
         
         try {
@@ -373,7 +484,14 @@ function Menu({
         } catch(e) {}
     }, []);
 
-    // При кліку на акцію зі стравою відкриваємо модалку страви та активуємо її категорію
+    // При кліку на категорію з каруселі
+    useEffect(() => {
+        if (!targetCategory) return;
+        setActiveCategory(targetCategory);
+        if (clearTargetCategory) clearTargetCategory();
+    }, [targetCategory]);
+
+    // При кліку на акцію зі стравою
     useEffect(() => {
         if (!targetPromoMenuItemId || items.length === 0) return;
         const target = items.find((i: any) => i.id === targetPromoMenuItemId);
@@ -401,13 +519,9 @@ function Menu({
                         if (opt) selectedOpts.push(opt);
                     }
                 }
-                
-                // First apply absolute prices
                 for (const opt of selectedOpts) {
                     if (opt.isAbsolute) p = parseFloat(opt.price);
                 }
-                
-                // Then apply additive prices
                 for (const opt of selectedOpts) {
                     if (!opt.isAbsolute) p += parseFloat(opt.price);
                 }
@@ -419,8 +533,6 @@ function Menu({
     const openModal = (item: any) => {
         setSelectedItem(item);
         setModalPrice(parseFloat(item.price));
-        
-        // Виставляємо дефолтні опції (першу в групі)
         const defOpts: Record<string, string[]> = {};
         if (item.variations) {
             try {
@@ -439,8 +551,6 @@ function Menu({
 
     const addToCart = () => {
         if (!selectedItem) return;
-        
-        // Шукаємо чи є вже такий товар З ТАКИМИ Ж ОПЦІЯМИ
         const existingIdx = cart.findIndex(c => 
             c.menuItemId === selectedItem.id && 
             JSON.stringify(c.options) === JSON.stringify(modalOptions)
@@ -462,8 +572,7 @@ function Menu({
         }
         setSelectedItem(null);
     };
-    
-    // Quick Add from Grid (uses default options)
+
     const quickAdd = (item: any) => {
         let p = parseFloat(item.price);
         const defOpts: Record<string, string[]> = {};
@@ -480,7 +589,6 @@ function Menu({
                         defOpts[vGroup.name] = [];
                     }
                 }
-                
                 for (const opt of selectedOpts) {
                     if (opt.isAbsolute) p = parseFloat(opt.price);
                 }
@@ -512,7 +620,7 @@ function Menu({
     };
     
     const updateCartQty = (cartId: string, delta: number) => {
-        setCart(prev => prev.map(c => c.cartId === cartId ? {...c, quantity: c.quantity + delta} : c).filter(c => c.quantity > 0));
+        setCart((prev: CartItem[]) => prev.map(c => c.cartId === cartId ? {...c, quantity: c.quantity + delta} : c).filter(c => c.quantity > 0));
     };
 
     const handleLike = (e: React.MouseEvent, id: number) => {
@@ -535,10 +643,107 @@ function Menu({
         }
     };
 
-    const categories = Array.from(new Set(items.filter(i => i.isAvailable).map(i => i.categoryName)));
+    // Відкриття модалки конфігуратора комбо
+    const openComboModal = (combo: any) => {
+        let config: any = null;
+        try { config = JSON.parse(combo.comboConfig); } catch(e) {}
+        if (!config || !config.slots) return;
+
+        const slotPicks: Record<string, number> = {};
+        config.slots.forEach((s: any) => {
+            const eligible = items.filter(i => {
+                if (!i.isAvailable) return false;
+                if (s.selectionType === 'CATEGORY') {
+                    return i.categoryId === s.categoryId || (s.categoryName && i.categoryName === s.categoryName);
+                } else {
+                    return s.itemIds && s.itemIds.includes(i.id);
+                }
+            });
+            if (eligible.length > 0) {
+                slotPicks[s.id] = eligible[0].id;
+            }
+        });
+
+        let rewardPick: number | null = null;
+        if (config.reward && config.reward.rewardType === 'FREE_ITEM') {
+            const r = config.reward;
+            const eligibleReward = items.filter(i => {
+                if (!i.isAvailable) return false;
+                if (r.selectionType === 'CATEGORY') {
+                    return i.categoryId === r.categoryId || (r.categoryName && i.categoryName === r.categoryName);
+                } else {
+                    return r.itemIds && r.itemIds.includes(i.id);
+                }
+            });
+            if (eligibleReward.length > 0) {
+                rewardPick = eligibleReward[0].id;
+            }
+        }
+
+        setComboSlotSelections(slotPicks);
+        setComboRewardSelection(rewardPick);
+        setActiveComboModal(combo);
+    };
+
+    const addComboToCart = () => {
+        if (!activeComboModal) return;
+        let config: any = null;
+        try { config = JSON.parse(activeComboModal.comboConfig); } catch(e) {}
+        if (!config) return;
+
+        const itemsToAdd: CartItem[] = [];
+
+        // Додаємо позиції вимог (слоти)
+        config.slots.forEach((s: any) => {
+            const pickedId = comboSlotSelections[s.id];
+            const item = items.find(i => i.id === pickedId);
+            if (item) {
+                const qty = s.quantity || 1;
+                for (let k = 0; k < qty; k++) {
+                    itemsToAdd.push({
+                        cartId: Math.random().toString(36).substring(7),
+                        menuItemId: item.id,
+                        name: item.name,
+                        price: parseFloat(item.price),
+                        quantity: 1,
+                        options: {}
+                    });
+                }
+            }
+        });
+
+        // Додаємо подарункову позицію
+        if (config.reward && config.reward.rewardType === 'FREE_ITEM' && comboRewardSelection) {
+            const rewardItem = items.find(i => i.id === comboRewardSelection);
+            if (rewardItem) {
+                const rQty = config.reward.quantity || 1;
+                for (let k = 0; k < rQty; k++) {
+                    itemsToAdd.push({
+                        cartId: Math.random().toString(36).substring(7),
+                        menuItemId: rewardItem.id,
+                        name: `${rewardItem.name} (🎁 Подарунок)`,
+                        price: parseFloat(rewardItem.price),
+                        quantity: 1,
+                        options: {}
+                    });
+                }
+            }
+        }
+
+        if (itemsToAdd.length > 0) {
+            setCart((prev: CartItem[]) => [...prev, ...itemsToAdd]);
+            if (onSelectComboForOrder) {
+                onSelectComboForOrder(activeComboModal.id);
+            }
+        }
+
+        setActiveComboModal(null);
+    };
+
+    const normalCats = Array.from(new Set(items.filter(i => i.isAvailable).map(i => i.categoryName)));
+    const categories = comboPromotions.length > 0 ? ['🔥 Комбо', ...normalCats] : normalCats;
     const currentItems = items.filter(i => i.isAvailable && i.categoryName === activeCategory);
 
-    // Допоміжна функція для рендеру опцій
     const renderVariations = (variationsStr: string) => {
         try {
             const vars = JSON.parse(variationsStr);
@@ -552,7 +757,7 @@ function Menu({
                                 const current = modalOptions[group.name] || [];
                                 let next;
                                 if (group.type === 'SINGLE') {
-                                    next = [opt.name]; // always select exactly one
+                                    next = [opt.name];
                                 } else {
                                     if (isSelected) next = current.filter((n: string) => n !== opt.name);
                                     else next = [...current, opt.name];
@@ -563,14 +768,14 @@ function Menu({
                                 <button 
                                     key={optIdx}
                                     onClick={toggleOption}
-                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                                         isSelected 
                                             ? 'bg-indigo-600 text-white shadow-md' 
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                                 >
                                     {opt.name} 
-                                    <span className={`ml-1 opacity-75 text-xs`}>
+                                    <span className="ml-1 opacity-75 text-xs">
                                         {opt.isAbsolute ? `${opt.price} ₴` : (opt.price > 0 ? `+${opt.price} ₴` : '')}
                                     </span>
                                 </button>
@@ -590,9 +795,9 @@ function Menu({
                     <button 
                         key={cat} 
                         onClick={() => setActiveCategory(cat)}
-                        className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full font-bold transition-all ${
+                        className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full font-bold transition-all cursor-pointer ${
                             activeCategory === cat 
-                                ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-md' 
+                                ? (cat === '🔥 Комбо' ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-900 dark:bg-indigo-600 text-white shadow-md')
                                 : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                         }`}
                     >
@@ -601,12 +806,12 @@ function Menu({
                 ))}
             </div>
 
-            {/* Модалка з інформацією про продукт */}
+            {/* Модалка зі стравою */}
             {selectedItem && createPortal(
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 sm:p-0 animate-slideUpFade" onClick={() => setSelectedItem(null)}>
                     <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
                         {selectedItem.imageUrl && <div className="shrink-0"><img src={selectedItem.imageUrl} className="w-full aspect-[4/3] object-cover" /></div>}
-                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/70 transition-colors">✕</button>
+                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/70 transition-colors cursor-pointer">✕</button>
                         
                         <div className="p-6 overflow-y-auto">
                             <div className="flex justify-between items-start mb-2">
@@ -643,7 +848,7 @@ function Menu({
                             )}
 
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
-                                <button onClick={addToCart} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors flex justify-center gap-2 items-center shadow-md">
+                                <button onClick={addToCart} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors flex justify-center gap-2 items-center shadow-md cursor-pointer">
                                     <span>Додати</span>
                                     <span className="opacity-50">•</span>
                                     <span>{modalPrice} ₴</span>
@@ -655,51 +860,313 @@ function Menu({
                 document.body
             )}
 
-            {/* Сітка товарів */}
-            <div className="grid grid-cols-2 gap-4">
-                {currentItems.map((i:any) => {
-                    // Рахуємо скільки ТАКИХ товарів (з будь-якими опціями) в кошику
-                    const qtyInCart = cart.filter(c => c.menuItemId === i.id).reduce((sum, c) => sum + c.quantity, 0);
-                    
-                    return (
-                    <div key={i.id} className="flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-xs border border-slate-100 dark:border-slate-800 hover:shadow-lg dark:hover:border-slate-700 transition-all group relative">
-                        <button 
-                            onClick={(e) => handleLike(e, i.id)} 
-                            className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-xs text-xs font-bold text-slate-600 dark:text-slate-300 transition-transform active:scale-90"
-                        >
-                            {likedItems.has(i.id) ? <HeartIcon className="w-4 h-4 text-pink-500" /> : <HeartIconOutline className="w-4 h-4 text-slate-400 dark:text-slate-400" />}
-                            <span className={likedItems.has(i.id) ? "text-pink-600 dark:text-pink-400" : "text-slate-500 dark:text-slate-400"}>{i.favoritesCount || 0}</span>
-                        </button>
-                        
-                        <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800 relative cursor-pointer" onClick={() => openModal(i)}>
-                            {i.imageUrl ? 
-                                <img src={i.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                : <div className="w-full h-full"></div>
-                            }
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
-                            <button className="absolute bottom-2 left-2 w-8 h-8 bg-black/40 backdrop-blur-md text-white rounded-full flex items-center justify-center pointer-events-none">
-                                <InformationCircleIcon className="w-5 h-5" />
+            {/* Конфігуратор комбо (Модальне вікно) */}
+            {activeComboModal && createPortal(
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 sm:p-0 animate-slideUpFade" onClick={() => setActiveComboModal(null)}>
+                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+                        {activeComboModal.imageUrl && (
+                            <div className="relative aspect-[16/9] w-full shrink-0 bg-slate-900">
+                                <img src={activeComboModal.imageUrl} alt={activeComboModal.title} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                                <span className="absolute top-4 left-4 z-10 px-3 py-1 bg-amber-500 text-white text-xs font-black uppercase tracking-wider rounded-full shadow-md">
+                                    🔥 Зібрати комбо
+                                </span>
+                                <button onClick={() => setActiveComboModal(null)} className="absolute top-4 right-4 w-9 h-9 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/75 transition-colors cursor-pointer">
+                                    ✕
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                            {!activeComboModal.imageUrl && (
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <span className="text-amber-500 font-black text-xs uppercase tracking-wider">🔥 Зібрати комбо</span>
+                                        <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight mt-0.5">
+                                            {activeComboModal.title}
+                                        </h2>
+                                    </div>
+                                    <button onClick={() => setActiveComboModal(null)} className="p-1 text-slate-400 hover:text-slate-600">✕</button>
+                                </div>
+                            )}
+
+                            {activeComboModal.shortDescription && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    {activeComboModal.shortDescription}
+                                </p>
+                            )}
+
+                            {/* Слоти вимог */}
+                            {(() => {
+                                let config: any = null;
+                                try { config = JSON.parse(activeComboModal.comboConfig); } catch(e) {}
+                                if (!config) return null;
+
+                                return (
+                                    <div className="space-y-4">
+                                        {config.slots.map((slot: any, sIdx: number) => {
+                                            const eligible = items.filter(i => {
+                                                if (!i.isAvailable) return false;
+                                                if (slot.selectionType === 'CATEGORY') {
+                                                    return i.categoryId === slot.categoryId || (slot.categoryName && i.categoryName === slot.categoryName);
+                                                } else {
+                                                    return slot.itemIds && slot.itemIds.includes(i.id);
+                                                }
+                                            });
+
+                                            return (
+                                                <div key={slot.id || sIdx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
+                                                            {slot.name || `Позиція #${sIdx + 1}`} ({slot.quantity || 1} шт.)
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Оберіть 1 варіант</span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        {eligible.map((item: any) => {
+                                                            const isSelected = comboSlotSelections[slot.id] === item.id;
+                                                            return (
+                                                                <button
+                                                                    key={item.id}
+                                                                    type="button"
+                                                                    onClick={() => setComboSlotSelections(prev => ({ ...prev, [slot.id]: item.id }))}
+                                                                    className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                                                                        isSelected
+                                                                            ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/20'
+                                                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-300'}`}>
+                                                                            {isSelected && <span className="text-[10px]">✓</span>}
+                                                                        </div>
+                                                                        <span className="font-bold text-xs truncate">{item.name}</span>
+                                                                    </div>
+                                                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 ml-2">
+                                                                        {item.price} ₴
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {/* Подарункова позиція */}
+                                        {config.reward && config.reward.rewardType === 'FREE_ITEM' && (
+                                            <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 space-y-2.5">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-extrabold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                                        <span>🎁</span>
+                                                        <span>Ваш подарунок (0 ₴)</span>
+                                                    </span>
+                                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Безкоштовно</span>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {items.filter(i => {
+                                                        if (!i.isAvailable) return false;
+                                                        if (config.reward.selectionType === 'CATEGORY') {
+                                                            return i.categoryId === config.reward.categoryId || (config.reward.categoryName && i.categoryName === config.reward.categoryName);
+                                                        } else {
+                                                            return config.reward.itemIds && config.reward.itemIds.includes(i.id);
+                                                        }
+                                                    }).map((item: any) => {
+                                                        const isSelected = comboRewardSelection === item.id;
+                                                        return (
+                                                            <button
+                                                                key={item.id}
+                                                                type="button"
+                                                                onClick={() => setComboRewardSelection(item.id)}
+                                                                className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                                                                    isSelected
+                                                                        ? 'bg-emerald-100/90 dark:bg-emerald-900/60 border-emerald-500 text-emerald-900 dark:text-emerald-100 ring-2 ring-emerald-500/20'
+                                                                        : 'bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-800/60 text-slate-700 dark:text-slate-200'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'}`}>
+                                                                        {isSelected && <span className="text-[10px]">✓</span>}
+                                                                    </div>
+                                                                    <span className="font-bold text-xs truncate">{item.name}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                                                    <span className="text-xs line-through text-slate-400">{item.price} ₴</span>
+                                                                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">0 ₴</span>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Кнопка додавання зібраного комбо в кошик */}
+                        <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <button
+                                onClick={addComboToCart}
+                                className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                <SparklesIcon className="w-5 h-5 stroke-2" />
+                                <span>Додати все комбо до кошика</span>
                             </button>
                         </div>
-                        
-                        <div className="p-4 flex flex-col flex-1">
-                            <h3 className="font-semibold text-slate-900 dark:text-white leading-tight mb-1 text-sm cursor-pointer hover:underline" onClick={() => openModal(i)}>{i.name}</h3>
-                            <p className="text-slate-500 dark:text-slate-400 font-medium mb-4 flex-1 text-sm cursor-pointer" onClick={() => openModal(i)}>{i.price} ₴</p>
-                            
-                            {qtyInCart > 0 ? (
-                                <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 shadow-inner h-11 px-4">
-                                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">В кошику:</span>
-                                    <span className="font-bold text-slate-900 dark:text-white text-center text-lg">{qtyInCart}</span>
-                                </div>
-                            ) : (
-                                <button onClick={() => quickAdd(i)} className="w-full bg-slate-50 dark:bg-slate-800/80 font-bold text-slate-700 dark:text-slate-200 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 dark:ring-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700">
-                                    Додати
-                                </button>
-                            )}
-                        </div>
                     </div>
-                )})}
-            </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Рендер категорії: якщо '🔥 Комбо' - показуємо картки комбо-наборів */}
+            {activeCategory === '🔥 Комбо' ? (
+                <div className="space-y-4">
+                    {comboPromotions.length === 0 ? (
+                        <div className="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800">
+                            Наразі немає активних комбо-наборів
+                        </div>
+                    ) : (
+                        comboPromotions.map((combo: any) => {
+                            let parsed: any = null;
+                            try { parsed = JSON.parse(combo.comboConfig); } catch(e) {}
+                            const slots = parsed?.slots || [];
+                            const reward = parsed?.reward || null;
+
+                            return (
+                                <div
+                                    key={combo.id}
+                                    className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs space-y-4 overflow-hidden relative"
+                                >
+                                    {combo.imageUrl && (
+                                        <div className="aspect-[16/9] -mx-5 -mt-5 mb-4 relative overflow-hidden bg-slate-900">
+                                            <img src={combo.imageUrl} alt={combo.title} className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                                            <span className="absolute top-3 left-3 bg-amber-500 text-white font-black text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
+                                                🔥 Комбо набір
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            {!combo.imageUrl && (
+                                                <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full uppercase">
+                                                    🔥 Комбо
+                                                </span>
+                                            )}
+                                            {combo.badgeText && (
+                                                <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">
+                                                    {combo.badgeText}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white leading-tight">
+                                            {combo.title}
+                                        </h3>
+                                        {combo.shortDescription && (
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                                                {combo.shortDescription}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Формула комбо */}
+                                    <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/50 space-y-2">
+                                        <span className="text-[11px] font-black text-amber-800 dark:text-amber-300 block uppercase tracking-wider">
+                                            Склад комбо-пропозиції:
+                                        </span>
+                                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                                            {slots.map((s: any, idx: number) => {
+                                                const label = s.selectionType === 'CATEGORY'
+                                                    ? `${s.quantity}× Будь-яка ${s.categoryName || 'страва'}`
+                                                    : `${s.quantity}× [${s.itemNames?.join(', ') || 'Обрана страва'}]`;
+                                                return (
+                                                    <React.Fragment key={s.id || idx}>
+                                                        <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200 shadow-2xs border border-slate-200/80 dark:border-slate-700">
+                                                            {label}
+                                                        </span>
+                                                        {idx < slots.length - 1 && <span className="font-black text-amber-600">+</span>}
+                                                    </React.Fragment>
+                                                );
+                                            })}
+
+                                            {reward && (
+                                                <>
+                                                    <span className="font-black text-amber-600">➔</span>
+                                                    <span className="px-2.5 py-1 rounded-xl bg-emerald-500 text-white font-black shadow-xs">
+                                                        {reward.rewardType === 'FREE_ITEM'
+                                                            ? `🎁 ${reward.quantity || 1}× ${reward.selectionType === 'CATEGORY' ? reward.categoryName : reward.itemNames?.join(', ')} (0 ₴)`
+                                                            : reward.rewardType === 'FIXED_PRICE'
+                                                                ? `🏷️ Ціна: ${reward.fixedPrice} ₴`
+                                                                : `🏷️ Знижка -${reward.discountPercent}%`}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => openComboModal(combo)}
+                                        className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        <SparklesIcon className="w-4 h-4 stroke-2" />
+                                        <span>Зібрати та замовити комбо</span>
+                                    </button>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            ) : (
+                /* Сітка звичайних страв меню */
+                <div className="grid grid-cols-2 gap-4">
+                    {currentItems.map((i:any) => {
+                        const qtyInCart = cart.filter(c => c.menuItemId === i.id).reduce((sum, c) => sum + c.quantity, 0);
+                        
+                        return (
+                        <div key={i.id} className="flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-xs border border-slate-100 dark:border-slate-800 hover:shadow-lg dark:hover:border-slate-700 transition-all group relative">
+                            <button 
+                                onClick={(e) => handleLike(e, i.id)} 
+                                className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-xs text-xs font-bold text-slate-600 dark:text-slate-300 transition-transform active:scale-90 cursor-pointer"
+                            >
+                                {likedItems.has(i.id) ? <HeartIcon className="w-4 h-4 text-pink-500" /> : <HeartIconOutline className="w-4 h-4 text-slate-400 dark:text-slate-400" />}
+                                <span className={likedItems.has(i.id) ? "text-pink-600 dark:text-pink-400" : "text-slate-500 dark:text-slate-400"}>{i.favoritesCount || 0}</span>
+                            </button>
+                            
+                            <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800 relative cursor-pointer" onClick={() => openModal(i)}>
+                                {i.imageUrl ? 
+                                    <img src={i.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    : <div className="w-full h-full"></div>
+                                }
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
+                                <button className="absolute bottom-2 left-2 w-8 h-8 bg-black/40 backdrop-blur-md text-white rounded-full flex items-center justify-center pointer-events-none">
+                                    <InformationCircleIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                            
+                            <div className="p-4 flex flex-col flex-1">
+                                <h3 className="font-semibold text-slate-900 dark:text-white leading-tight mb-1 text-sm cursor-pointer hover:underline" onClick={() => openModal(i)}>{i.name}</h3>
+                                <p className="text-slate-500 dark:text-slate-400 font-medium mb-4 flex-1 text-sm cursor-pointer" onClick={() => openModal(i)}>{i.price} ₴</p>
+                                
+                                {qtyInCart > 0 ? (
+                                    <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 shadow-inner h-11 px-4">
+                                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">В кошику:</span>
+                                        <span className="font-bold text-slate-900 dark:text-white text-center text-lg">{qtyInCart}</span>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => quickAdd(i)} className="w-full bg-slate-50 dark:bg-slate-800/80 font-bold text-slate-700 dark:text-slate-200 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 dark:ring-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                                        Додати
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )})}
+                </div>
+            )}
             
             {/* Відображення детального кошика перед кнопкою "Оформити" */}
             {cart.length > 0 && (
@@ -720,9 +1187,9 @@ function Menu({
                                         <div className="text-slate-900 dark:text-white font-bold text-sm mt-1">{c.price} ₴</div>
                                     </div>
                                     <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-1 shadow-inner shrink-0">
-                                        <button onClick={() => updateCartQty(c.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all">−</button>
+                                        <button onClick={() => updateCartQty(c.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all cursor-pointer">−</button>
                                         <span className="font-bold text-slate-900 dark:text-white w-4 text-center">{c.quantity}</span>
-                                        <button onClick={() => updateCartQty(c.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all">+</button>
+                                        <button onClick={() => updateCartQty(c.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all cursor-pointer">+</button>
                                     </div>
                                 </div>
                             );
@@ -738,156 +1205,101 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
     const name = info?.name || 'Ресторан «RestoFlow»';
     const description = info?.description || 'Авторська кухня, затишна атмосфера та швидкий сервіс';
     const wifiSsid = info?.wifiSsid || 'Resto_Guest';
-    const wifiPassword = info?.wifiPassword || 'resto2026';
-    const workingHours = info?.workingHours || 'Пн–Нд: 10:00 – 22:00';
-    const address = info?.address || 'вул. Володимирська, 24';
-    const phone = info?.phone || '+380442345678';
-    const phoneLink = 'tel:' + phone.replace(/[^0-9+]/g, '');
-    const allergensNote = info?.allergensNote || 'Якщо у вас є харчова алергія або особливі побажання до інгредієнтів, будь ласка, повідомте про це офіціанта.';
+    const wifiPass = info?.wifiPassword || 'resto2026';
+    const hours = info?.workingHours || '10:00 – 23:00 щодня';
+    const address = info?.address || 'вул. Хрещатик, 1, Київ';
+    const phone = info?.phone || '+380 44 123 45 67';
+    const instagram = info?.instagram;
+    const lat = info?.lat ? Number(info.lat) : 50.4501;
+    const lng = info?.lng ? Number(info.lng) : 30.5234;
 
     return (
-        <footer className="mt-8 px-6 pt-8 pb-12 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 rounded-t-[2.5rem] shadow-xs">
-            {/* Логотип закладу та назва */}
-            <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-black text-xl mb-3 shadow-xs border border-indigo-100 dark:border-indigo-900/50">
-                    {name.charAt(0) || 'R'}
-                </div>
-                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{name}</h2>
-                {description && <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">{description}</p>}
-            </div>
-
-            {/* Швидкі картки з інформацією */}
-            <div className="space-y-3 mb-6">
-                {/* Перемикач теми оформлення */}
-                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100/70 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 rounded-xl">
-                            {theme === 'dark' ? <MoonIcon className="w-5 h-5" /> : <SunIcon className="w-5 h-5" />}
-                        </div>
-                        <div className="text-left">
-                            <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Оформлення</div>
-                            <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                {theme === 'dark' ? 'Темна тема' : 'Світла тема'}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center bg-white dark:bg-slate-700/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-600 shadow-2xs gap-1">
-                        <button
-                            type="button"
-                            onClick={() => { if (theme === 'dark') toggle(); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                theme === 'light'
-                                    ? 'bg-indigo-600 text-white shadow-2xs'
-                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                            }`}
-                        >
-                            <SunIcon className="w-3.5 h-3.5" />
-                            <span>Світла</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { if (theme === 'light') toggle(); }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                theme === 'dark'
-                                    ? 'bg-indigo-600 text-white shadow-2xs'
-                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                            }`}
-                        >
-                            <MoonIcon className="w-3.5 h-3.5" />
-                            <span>Темна</span>
-                        </button>
-                    </div>
-                </div>
-                {/* Wi-Fi плашка */}
-                {wifiSsid && (
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-100/70 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 rounded-xl">
-                                <WifiIcon className="w-5 h-5" />
-                            </div>
-                            <div className="text-left">
-                                <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Wi-Fi для гостей</div>
-                                <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{wifiSsid}</div>
-                            </div>
-                        </div>
-                        {wifiPassword && (
-                            <span className="text-xs font-mono font-bold bg-white dark:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 shadow-2xs">
-                                {wifiPassword}
-                            </span>
-                        )}
-                    </div>
-                )}
-
-                {/* Графік роботи */}
-                {workingHours && (
-                    <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                        <div className="p-2 bg-emerald-100/70 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                            <ClockIcon className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                            <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Графік роботи</div>
-                            <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{workingHours}</div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Адреса та контакт */}
-                {(address || phone) && (
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 bg-amber-100/70 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 rounded-xl">
-                                <MapPinIcon className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Локація та бронь</div>
-                                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{address || phone}</div>
-                            </div>
-                        </div>
-                        {phone && (
-                            <a href={phoneLink} className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Зателефонувати">
-                                <PhoneIcon className="w-5 h-5" />
-                            </a>
-                        )}
-                    </div>
-                )}
-
-                {/* Інтерактивна карта Leaflet */}
-                <div className="pt-2">
-                    <div className="flex items-center justify-between mb-2 px-1">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Як нас знайти</span>
-                        <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate max-w-[200px]">{address}</span>
-                    </div>
-                    <LeafletMap 
-                        lat={info?.latitude || 50.4485} 
-                        lng={info?.longitude || 30.5186} 
-                        title={name} 
-                        address={address} 
-                        readOnly={true} 
-                        height="200px" 
-                    />
+        <footer className="mt-16 space-y-6 pt-8 border-t border-slate-200/70 dark:border-slate-800/80 px-6 pb-6 text-slate-600 dark:text-slate-400 transition-colors">
+            {/* Блок перемикача теми (Опція 1: окремий перемикач) */}
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between shadow-xs">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Тема інтерфейсу
+                </span>
+                <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
+                    <button
+                        type="button"
+                        onClick={theme === 'dark' ? toggle : undefined}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                            theme === 'light'
+                                ? 'bg-white text-amber-600 shadow-xs'
+                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                        }`}
+                        aria-pressed={theme === 'light'}
+                    >
+                        <SunIcon className="w-3.5 h-3.5" />
+                        <span>Світла</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={theme === 'light' ? toggle : undefined}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                            theme === 'dark'
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                        }`}
+                        aria-pressed={theme === 'dark'}
+                    >
+                        <MoonIcon className="w-3.5 h-3.5" />
+                        <span>Темна</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Інформація про алергени */}
-            {allergensNote && (
-                <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/40 rounded-2xl border border-amber-100 dark:border-amber-900/40 mb-6 text-left">
-                    <div className="flex items-start gap-2.5">
-                        <InformationCircleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                        <p className="text-xs text-amber-900/80 dark:text-amber-300 leading-relaxed">
-                            {allergensNote}
-                        </p>
+            <div className="space-y-2">
+                <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{name}</h3>
+                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 text-xs">
+                {wifiPass && (
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+                        <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
+                            <WifiIcon className="w-4 h-4 text-indigo-500" />
+                            <span className="font-medium">Wi-Fi: <strong className="text-slate-900 dark:text-white">{wifiSsid}</strong></span>
+                        </div>
+                        <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">{wifiPass}</span>
                     </div>
+                )}
+                {hours && (
+                    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-slate-700 dark:text-slate-300">
+                        <ClockIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span>{hours}</span>
+                    </div>
+                )}
+                {address && (
+                    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-slate-700 dark:text-slate-300">
+                        <MapPinIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span>{address}</span>
+                    </div>
+                )}
+                {phone && (
+                    <a href={`tel:${phone.replace(/\s+/g, '')}`} className="flex items-center gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 transition-colors">
+                        <PhoneIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <span className="font-semibold">{phone}</span>
+                    </a>
+                )}
+                {instagram && (
+                    <a href={instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-amber-500/10 border border-pink-200/60 dark:border-pink-900/40 text-pink-700 dark:text-pink-300 font-semibold hover:opacity-90 transition-opacity">
+                        <span>📸 Наш Instagram</span>
+                        <span className="text-xs">@{instagram.replace(/^.*instagram\.com\//, '').replace('@', '').replace(/\/$/, '')} →</span>
+                    </a>
+                )}
+            </div>
+
+            {info?.lat && info?.lng && (
+                <div className="space-y-2 pt-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Як нас знайти</span>
+                    <LeafletMap lat={lat} lng={lng} label={name} />
                 </div>
             )}
 
-            {/* Копірайт та інфо */}
-            <div className="text-center border-t border-slate-100 dark:border-slate-800 pt-5">
-                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                    Безконтактне обслуговування • Оплата онлайн або карткою
-                </p>
-                <p className="text-[11px] text-slate-300 dark:text-slate-600 mt-1">
-                    © 2026 {name} • Смачного відпочинку! ✨
-                </p>
+            <div className="pt-4 text-center text-[10px] text-slate-400 dark:text-slate-600">
+                © {new Date().getFullYear()} {name}. Працює на RestoFlow.
             </div>
         </footer>
     );

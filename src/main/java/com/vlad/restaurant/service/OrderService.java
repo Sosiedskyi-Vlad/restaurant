@@ -37,11 +37,14 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,6 +81,7 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final AnalyticsRepository analyticsRepository;
     private final PromotionRepository promotionRepository;
+    private final ObjectMapper objectMapper;
 
 
     // @Transactional гарантує ACID: якщо хоча б одна страва не пройде перевірку,
@@ -110,10 +114,9 @@ public class OrderService {
             String selectedOptionsStr = null;
             if (itemRequest.options() != null && !itemRequest.options().isEmpty()) {
                 try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    selectedOptionsStr = mapper.writeValueAsString(itemRequest.options());
+                    selectedOptionsStr = objectMapper.writeValueAsString(itemRequest.options());
                     if (menuItem.getVariations() != null && !menuItem.getVariations().isBlank()) {
-                        java.util.List<Map<String, Object>> variations = mapper.readValue(menuItem.getVariations(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                        java.util.List<Map<String, Object>> variations = objectMapper.readValue(menuItem.getVariations(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
                         java.util.List<Map<String, Object>> selectedOpts = new java.util.ArrayList<>();
                         
                         for (Map.Entry<String, java.util.List<String>> entry : itemRequest.options().entrySet()) {
@@ -352,7 +355,7 @@ public class OrderService {
         return orderRepository.findAll(spec, pageable).map(OrderResponse::from);
     }
 
-    // Оновлення статусу окремої страви в замовленні (поштучний KDS чекліст)
+    // Оновлення статусу окремої страви в замовленні (поштучний KDS чек-лист)
     @Transactional
     public OrderResponse updateItemStatus(UUID orderId, UUID itemId, OrderItemStatus target, Authentication auth) {
         Order order = orderRepository.findByIdForUpdate(orderId)
@@ -451,8 +454,19 @@ public class OrderService {
 
     @Transactional
     public OrderResponse applyPromotion(UUID orderId, UUID promotionId) {
+        return applyPromotion(orderId, promotionId, null);
+    }
+
+    @Transactional
+    public OrderResponse applyPromotion(UUID orderId, UUID promotionId, Authentication auth) {
         Order order = orderRepository.findByIdForUpdate(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Замовлення не знайдено"));
+
+        if (auth != null && auth.getPrincipal() instanceof GuestPrincipal guest) {
+            if (order.getTable() == null || !order.getTable().getId().equals(guest.tableId())) {
+                throw new AccessDeniedException("Ви не можете редагувати чуже замовлення");
+            }
+        }
 
         if (order.isPaid() || order.getStatus() == OrderStatus.PAID) {
             throw new ConflictException("Неможливо змінити знижку для вже оплаченого замовлення");
@@ -481,22 +495,30 @@ public class OrderService {
                 throw new BadRequestException("Ця акція наразі не активна");
             }
 
-            int percent = promo.getDiscountPercent() != null ? promo.getDiscountPercent() : 0;
-            if (percent <= 0) {
-                throw new BadRequestException("Ця акція не передбачає відсоткової знижки на чек");
+            BigDecimal discount;
+            String promoTitle = promo.getTitle();
+
+            if ("COMBO".equalsIgnoreCase(promo.getPromoType())) {
+                discount = calculateComboDiscount(order, promo);
+            } else {
+                int percent = promo.getDiscountPercent() != null ? promo.getDiscountPercent() : 0;
+                if (percent <= 0) {
+                    throw new BadRequestException("Ця акція не передбачає відсоткової знижки на чек");
+                }
+
+                // Розрахунок вартості страв
+                BigDecimal subtotal = order.getItems().stream()
+                        .map(i -> i.getPriceAtTime().multiply(BigDecimal.valueOf(i.getQuantity())))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                discount = subtotal.multiply(BigDecimal.valueOf(percent))
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                promoTitle = promo.getTitle() + " (-" + percent + "%)";
             }
-
-            // Розрахунок вартості страв
-            BigDecimal subtotal = order.getItems().stream()
-                    .map(i -> i.getPriceAtTime().multiply(BigDecimal.valueOf(i.getQuantity())))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            BigDecimal discount = subtotal.multiply(BigDecimal.valueOf(percent))
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
 
             order.setDiscountAmount(discount);
             order.setAppliedPromotion(promo);
-            order.setAppliedPromotionTitle(promo.getTitle() + " (-" + percent + "%)");
+            order.setAppliedPromotionTitle(promoTitle);
 
             // Оновлюємо статистику акції
             promo.setUsageCount(promo.getUsageCount() + 1);
@@ -512,5 +534,160 @@ public class OrderService {
         eventPublisher.publishEvent(new OrderEvent(tId,
                 new OrderEventMessage(OrderEventMessage.Type.ORDER_PROMOTION_UPDATED, saved.getStatus(), response)));
         return response;
+    }
+
+    private BigDecimal calculateComboDiscount(Order order, Promotion promo) {
+        if (promo.getComboConfig() == null || promo.getComboConfig().isBlank()) {
+            throw new BadRequestException("Конфігурація комбо-акції порожня");
+        }
+
+        try {
+            JsonNode config = objectMapper.readTree(promo.getComboConfig());
+            JsonNode slotsNode = config.get("slots");
+            JsonNode rewardNode = config.get("reward");
+
+            if (slotsNode == null || !slotsNode.isArray() || slotsNode.isEmpty()) {
+                throw new BadRequestException("В акції не налаштовано вимоги до замовлення");
+            }
+
+            // Поштучний пул замовлених позицій
+            class OrderUnit {
+                final Long menuItemId;
+                final Integer categoryId;
+                final String name;
+                final BigDecimal price;
+                boolean used = false;
+                OrderUnit(Long menuItemId, Integer categoryId, String name, BigDecimal price) {
+                    this.menuItemId = menuItemId;
+                    this.categoryId = categoryId;
+                    this.name = name;
+                    this.price = price;
+                }
+            }
+
+            List<OrderUnit> pool = new ArrayList<>();
+            for (OrderItem item : order.getItems()) {
+                if (item.getMenuItem() == null) continue;
+                Integer catId = item.getMenuItem().getCategory() != null ? item.getMenuItem().getCategory().getId() : null;
+                int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+                BigDecimal unitPrice = item.getPriceAtTime() != null ? item.getPriceAtTime() : BigDecimal.ZERO;
+                for (int i = 0; i < qty; i++) {
+                    pool.add(new OrderUnit(
+                            item.getMenuItem().getId(),
+                            catId,
+                            item.getMenuItem().getName(),
+                            unitPrice
+                    ));
+                }
+            }
+
+            // 1. Перевірка вимог замовлення (Блок А)
+            for (JsonNode slot : slotsNode) {
+                int qtyNeeded = slot.has("quantity") ? slot.get("quantity").asInt(1) : 1;
+                String selectionType = slot.has("selectionType") ? slot.get("selectionType").asText("CATEGORY") : "CATEGORY";
+                Integer categoryId = slot.has("categoryId") && !slot.get("categoryId").isNull() ? slot.get("categoryId").asInt() : null;
+
+                Set<Long> itemIds = new HashSet<>();
+                if (slot.has("itemIds") && slot.get("itemIds").isArray()) {
+                    for (JsonNode idNode : slot.get("itemIds")) {
+                        itemIds.add(idNode.asLong());
+                    }
+                }
+
+                int matched = 0;
+                for (OrderUnit unit : pool) {
+                    if (unit.used) continue;
+                    boolean match;
+                    if ("CATEGORY".equalsIgnoreCase(selectionType)) {
+                        match = categoryId != null && categoryId.equals(unit.categoryId);
+                    } else {
+                        match = itemIds.contains(unit.menuItemId);
+                    }
+                    if (match) {
+                        unit.used = true;
+                        matched++;
+                        if (matched == qtyNeeded) break;
+                    }
+                }
+
+                if (matched < qtyNeeded) {
+                    String slotDesc = slot.has("name") && !slot.get("name").asText().isBlank()
+                            ? slot.get("name").asText()
+                            : ("CATEGORY".equalsIgnoreCase(selectionType)
+                                    ? (slot.has("categoryName") ? slot.get("categoryName").asText() : "страву з категорії")
+                                    : "акційну страву");
+                    throw new BadRequestException("Для комбо у замовленні не вистачає: " + slotDesc + " (ще " + (qtyNeeded - matched) + " шт.)");
+                }
+            }
+
+            // 2. Винагорода (Блок Б)
+            if (rewardNode == null || rewardNode.isNull()) {
+                int percent = promo.getDiscountPercent() != null ? promo.getDiscountPercent() : 0;
+                BigDecimal comboSubtotal = pool.stream().filter(u -> u.used).map(u -> u.price).reduce(BigDecimal.ZERO, BigDecimal::add);
+                return comboSubtotal.multiply(BigDecimal.valueOf(percent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            }
+
+            String rewardType = rewardNode.has("rewardType") ? rewardNode.get("rewardType").asText("FREE_ITEM") : "FREE_ITEM";
+
+            if ("FREE_ITEM".equalsIgnoreCase(rewardType)) {
+                int rewardQty = rewardNode.has("quantity") ? rewardNode.get("quantity").asInt(1) : 1;
+                String rSelectionType = rewardNode.has("selectionType") ? rewardNode.get("selectionType").asText("CATEGORY") : "CATEGORY";
+                Integer rCategoryId = rewardNode.has("categoryId") && !rewardNode.get("categoryId").isNull() ? rewardNode.get("categoryId").asInt() : null;
+                Set<Long> rItemIds = new HashSet<>();
+                if (rewardNode.has("itemIds") && rewardNode.get("itemIds").isArray()) {
+                    for (JsonNode idNode : rewardNode.get("itemIds")) {
+                        rItemIds.add(idNode.asLong());
+                    }
+                }
+
+                List<OrderUnit> rewardMatches = new ArrayList<>();
+                for (OrderUnit unit : pool) {
+                    if (unit.used) continue;
+                    boolean match;
+                    if ("CATEGORY".equalsIgnoreCase(rSelectionType)) {
+                        match = rCategoryId != null && rCategoryId.equals(unit.categoryId);
+                    } else {
+                        match = rItemIds.contains(unit.menuItemId);
+                    }
+                    if (match) {
+                        rewardMatches.add(unit);
+                    }
+                }
+
+                if (rewardMatches.size() < rewardQty) {
+                    String rDesc = rewardNode.has("name") && !rewardNode.get("name").asText().isBlank()
+                            ? rewardNode.get("name").asText()
+                            : (rewardNode.has("categoryName") ? rewardNode.get("categoryName").asText() : "подарункову страву");
+                    throw new BadRequestException("У замовленні відсутня акційна позиція-подарунок (" + rDesc + "). Будь ласка, додайте її до замовлення!");
+                }
+
+                rewardMatches.sort(Comparator.comparing(u -> u.price));
+                BigDecimal discount = BigDecimal.ZERO;
+                for (int i = 0; i < rewardQty && i < rewardMatches.size(); i++) {
+                    OrderUnit r = rewardMatches.get(i);
+                    r.used = true;
+                    discount = discount.add(r.price);
+                }
+                return discount;
+            } else if ("FIXED_PRICE".equalsIgnoreCase(rewardType)) {
+                BigDecimal fixedPrice = rewardNode.has("fixedPrice") ? new BigDecimal(rewardNode.get("fixedPrice").asText("0")) : BigDecimal.ZERO;
+                BigDecimal comboSubtotal = pool.stream().filter(u -> u.used).map(u -> u.price).reduce(BigDecimal.ZERO, BigDecimal::add);
+                if (comboSubtotal.compareTo(fixedPrice) > 0) {
+                    return comboSubtotal.subtract(fixedPrice);
+                }
+                return BigDecimal.ZERO;
+            } else if ("DISCOUNT_PERCENT".equalsIgnoreCase(rewardType)) {
+                int percent = rewardNode.has("discountPercent") ? rewardNode.get("discountPercent").asInt(0) : (promo.getDiscountPercent() != null ? promo.getDiscountPercent() : 0);
+                BigDecimal comboSubtotal = pool.stream().filter(u -> u.used).map(u -> u.price).reduce(BigDecimal.ZERO, BigDecimal::add);
+                return comboSubtotal.multiply(BigDecimal.valueOf(percent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            }
+
+            return BigDecimal.ZERO;
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Помилка розрахунку комбо-акції", e);
+            throw new BadRequestException("Не вдалося розрахувати комбо-акцію: " + e.getMessage());
+        }
     }
 }

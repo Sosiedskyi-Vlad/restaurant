@@ -66,4 +66,19 @@ public class PromotionController {
     public void deletePromotion(@PathVariable UUID id) {
         promotionService.deletePromotion(id);
     }
+    @PostMapping(value = "/upload-image", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public java.util.Map<String, String> uploadImage(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = promotionService.uploadImageOnly(file);
+        return java.util.Map.of("imageUrl", url);
+    }
+
+    @PostMapping(value = "/{id}/image", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public PromotionResponse uploadImageForPromotion(
+            @PathVariable UUID id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file
+    ) {
+        return promotionService.uploadImageForPromotion(id, file);
+    }
 }

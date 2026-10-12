@@ -13,6 +13,8 @@ public record PromotionRequest(
         Long targetMenuItemId,
         Boolean active,
         Integer displayOrder,
-        Integer discountPercent
+        Integer discountPercent,
+        String promoType,
+        String comboConfig
 ) {
 }
