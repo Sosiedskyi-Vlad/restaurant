@@ -126,6 +126,7 @@ public class DataInitializer implements CommandLineRunner {
         p1.setActionType("CALL_WAITER");
         p1.setActive(true);
         p1.setDisplayOrder(0);
+        p1.setDiscountPercent(15);
         promotionRepository.save(p1);
 
         Promotion p2 = new Promotion();

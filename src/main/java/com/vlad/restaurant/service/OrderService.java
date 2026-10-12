@@ -18,6 +18,11 @@ import com.vlad.restaurant.exception.ResourceNotFoundException;
 import com.vlad.restaurant.repository.MenuItemRepository;
 import com.vlad.restaurant.repository.OrderRepository;
 import com.vlad.restaurant.repository.RestaurantTableRepository;
+import com.vlad.restaurant.entity.Promotion;
+import com.vlad.restaurant.repository.PromotionRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import com.vlad.restaurant.security.GuestPrincipal;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
@@ -72,6 +77,8 @@ public class OrderService {
     private final RestaurantTableRepository tableRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final AnalyticsRepository analyticsRepository;
+    private final PromotionRepository promotionRepository;
+
 
     // @Transactional гарантує ACID: якщо хоча б одна страва не пройде перевірку,
     // нічого не запишеться в базу.
@@ -440,5 +447,70 @@ public class OrderService {
                 avgMinutes,
                 totalDishes
         );
+    }
+
+    @Transactional
+    public OrderResponse applyPromotion(UUID orderId, UUID promotionId) {
+        Order order = orderRepository.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Замовлення не знайдено"));
+
+        if (order.isPaid() || order.getStatus() == OrderStatus.PAID) {
+            throw new ConflictException("Неможливо змінити знижку для вже оплаченого замовлення");
+        }
+
+        // Якщо раніше була застосована інша акція, зменшуємо її лічильники
+        if (order.getAppliedPromotion() != null) {
+            Promotion prevPromo = order.getAppliedPromotion();
+            prevPromo.setUsageCount(Math.max(0, prevPromo.getUsageCount() - 1));
+            BigDecimal prevDiscount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+            BigDecimal newTotal = prevPromo.getTotalDiscountGiven().subtract(prevDiscount);
+            prevPromo.setTotalDiscountGiven(newTotal.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newTotal);
+            promotionRepository.save(prevPromo);
+        }
+
+        if (promotionId == null) {
+            // Скасування знижки
+            order.setDiscountAmount(BigDecimal.ZERO);
+            order.setAppliedPromotion(null);
+            order.setAppliedPromotionTitle(null);
+        } else {
+            Promotion promo = promotionRepository.findById(promotionId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Акцію не знайдено"));
+
+            if (!promo.isActive()) {
+                throw new BadRequestException("Ця акція наразі не активна");
+            }
+
+            int percent = promo.getDiscountPercent() != null ? promo.getDiscountPercent() : 0;
+            if (percent <= 0) {
+                throw new BadRequestException("Ця акція не передбачає відсоткової знижки на чек");
+            }
+
+            // Розрахунок вартості страв
+            BigDecimal subtotal = order.getItems().stream()
+                    .map(i -> i.getPriceAtTime().multiply(BigDecimal.valueOf(i.getQuantity())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal discount = subtotal.multiply(BigDecimal.valueOf(percent))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+            order.setDiscountAmount(discount);
+            order.setAppliedPromotion(promo);
+            order.setAppliedPromotionTitle(promo.getTitle() + " (-" + percent + "%)");
+
+            // Оновлюємо статистику акції
+            promo.setUsageCount(promo.getUsageCount() + 1);
+            promo.setTotalDiscountGiven(
+                    (promo.getTotalDiscountGiven() != null ? promo.getTotalDiscountGiven() : BigDecimal.ZERO).add(discount)
+            );
+            promotionRepository.save(promo);
+        }
+
+        Order saved = orderRepository.save(order);
+        OrderResponse response = OrderResponse.from(saved);
+        UUID tId = saved.getTable() != null ? saved.getTable().getId() : null;
+        eventPublisher.publishEvent(new OrderEvent(tId,
+                new OrderEventMessage(OrderEventMessage.Type.ORDER_PROMOTION_UPDATED, saved.getStatus(), response)));
+        return response;
     }
 }

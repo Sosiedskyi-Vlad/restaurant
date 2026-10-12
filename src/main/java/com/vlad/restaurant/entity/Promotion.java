@@ -6,6 +6,7 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,6 +49,20 @@ public class Promotion {
     @Column(name = "display_order", nullable = false)
     @ColumnDefault("0")
     private int displayOrder = 0;
+
+    // Відсоток знижки для чека (наприклад, 15 для 15%)
+    @Column(name = "discount_percent")
+    @ColumnDefault("0")
+    private Integer discountPercent = 0;
+
+    // Статистика використання акції
+    @Column(name = "usage_count", nullable = false)
+    @ColumnDefault("0")
+    private int usageCount = 0;
+
+    @Column(name = "total_discount_given", nullable = false, precision = 10, scale = 2)
+    @ColumnDefault("0.00")
+    private BigDecimal totalDiscountGiven = BigDecimal.ZERO;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

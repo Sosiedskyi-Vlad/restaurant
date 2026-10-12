@@ -2,6 +2,7 @@ package com.vlad.restaurant.dto;
 
 import com.vlad.restaurant.entity.Promotion;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,6 +18,9 @@ public record PromotionResponse(
         String targetMenuItemName,
         boolean active,
         int displayOrder,
+        Integer discountPercent,
+        int usageCount,
+        BigDecimal totalDiscountGiven,
         LocalDateTime createdAt
 ) {
     public static PromotionResponse from(Promotion p, String menuItemName) {
@@ -32,6 +36,9 @@ public record PromotionResponse(
                 menuItemName,
                 p.isActive(),
                 p.getDisplayOrder(),
+                p.getDiscountPercent() != null ? p.getDiscountPercent() : 0,
+                p.getUsageCount(),
+                p.getTotalDiscountGiven() != null ? p.getTotalDiscountGiven() : BigDecimal.ZERO,
                 p.getCreatedAt()
         );
     }

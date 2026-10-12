@@ -28,6 +28,9 @@ interface Promotion {
     targetMenuItemName?: string;
     active: boolean;
     displayOrder: number;
+    discountPercent?: number;
+    usageCount?: number;
+    totalDiscountGiven?: number;
     createdAt: string;
 }
 
@@ -58,6 +61,7 @@ export default function AdminPromotions() {
     const [actionType, setActionType] = useState<'NONE' | 'MENU_ITEM' | 'CALL_WAITER'>('NONE');
     const [targetMenuItemId, setTargetMenuItemId] = useState<number | ''>('');
     const [displayOrder, setDisplayOrder] = useState<number>(0);
+    const [discountPercent, setDiscountPercent] = useState<number>(0);
     const [active, setActive] = useState(true);
 
     // Стан пошуку та вибору страви
@@ -101,6 +105,7 @@ export default function AdminPromotions() {
         setActionType('NONE');
         setTargetMenuItemId('');
         setDisplayOrder(promotions.length);
+        setDiscountPercent(0);
         setActive(true);
         setDishSearch('');
         setIsDishDropdownOpen(false);
@@ -117,6 +122,7 @@ export default function AdminPromotions() {
         setActionType(p.actionType || 'NONE');
         setTargetMenuItemId(p.targetMenuItemId || '');
         setDisplayOrder(p.displayOrder || 0);
+        setDiscountPercent(p.discountPercent || 0);
         setActive(p.active);
         setDishSearch('');
         setIsDishDropdownOpen(false);
@@ -146,6 +152,7 @@ export default function AdminPromotions() {
                 actionType,
                 targetMenuItemId: actionType === 'MENU_ITEM' && targetMenuItemId ? Number(targetMenuItemId) : null,
                 displayOrder: Number(displayOrder) || 0,
+                discountPercent: Number(discountPercent) || 0,
                 active
             };
 
@@ -226,7 +233,7 @@ export default function AdminPromotions() {
             </div>
 
             {/* Метрики */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
                     <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                         Всього створено акцій
@@ -248,10 +255,19 @@ export default function AdminPromotions() {
 
                 <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
                     <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        З прямою дією (CTA / Замовлення)
+                        Застосовано гостями
                     </div>
                     <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
-                        {ctaCount}
+                        {promotions.reduce((sum, p) => sum + (p.usageCount || 0), 0)} разів
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Зекономлено гостями
+                    </div>
+                    <div className="text-2xl font-black text-amber-500 dark:text-amber-400 mt-1">
+                        {promotions.reduce((sum, p) => sum + (Number(p.totalDiscountGiven) || 0), 0).toLocaleString()} ₴
                     </div>
                 </div>
             </div>
@@ -348,6 +364,20 @@ export default function AdminPromotions() {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Відсоток знижки та статистика */}
+                                    <div className="pt-2 flex flex-col gap-1.5">
+                                        {p.discountPercent && p.discountPercent > 0 ? (
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 text-xs font-bold w-fit">
+                                                <span>🏷️ Знижка на чек: -{p.discountPercent}%</span>
+                                            </div>
+                                        ) : null}
+
+                                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                            <span>Застосовано: <strong className="text-slate-800 dark:text-slate-200">{p.usageCount || 0}</strong> р.</span>
+                                            <span>Знижка: <strong className="text-emerald-600 dark:text-emerald-400">{Number(p.totalDiscountGiven || 0).toLocaleString()} ₴</strong></span>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Панель дій та перемикач активності */}
@@ -427,14 +457,14 @@ export default function AdminPromotions() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
                                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                                         Бейдж на банері
                                     </label>
                                     <input
                                         type="text"
-                                        placeholder="🎂 СВЯТО, 🔥 -20%, ☕ 1+1=3"
+                                        placeholder="🎂 СВЯТО, 🔥 -20%"
                                         value={badgeText}
                                         onChange={(e) => setBadgeText(e.target.value)}
                                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
@@ -443,7 +473,25 @@ export default function AdminPromotions() {
 
                                 <div>
                                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                        Порядок показу (сортування)
+                                        Знижка на чек (%)
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            placeholder="0"
+                                            value={discountPercent}
+                                            onChange={(e) => setDiscountPercent(parseInt(e.target.value, 10) || 0)}
+                                            className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">%</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                        Сортування
                                     </label>
                                     <input
                                         type="number"

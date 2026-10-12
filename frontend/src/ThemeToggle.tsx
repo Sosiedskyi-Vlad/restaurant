@@ -25,27 +25,32 @@ export function useTheme() {
 export default function ThemeToggle({ 
     theme: propTheme,
     toggle: propToggle,
-    className = '' 
+    className = '',
+    iconClassName = ''
 }: { 
     theme?: 'light' | 'dark';
     toggle?: () => void;
     className?: string;
+    iconClassName?: string;
 }) {
     const defaultHook = useTheme();
     const theme = propTheme ?? defaultHook.theme;
     const toggle = propToggle ?? defaultHook.toggle;
 
+    const buttonClass = className || "p-2 rounded-xl transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300";
+    const iconClass = iconClassName || "w-5 h-5";
+
     return (
         <button 
             type="button"
             onClick={toggle} 
-            className={`p-2 rounded-xl transition-colors ${className}`} 
+            className={buttonClass} 
             title={theme === 'dark' ? 'Перемкнути на світлу тему' : 'Перемкнути на темну тему'}
         >
             {theme === 'dark' ? (
-                <SunIcon className="w-5 h-5 text-amber-400" />
+                <SunIcon className={`${iconClass} text-amber-400`} />
             ) : (
-                <MoonIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                <MoonIcon className={`${iconClass} text-slate-600 dark:text-slate-300`} />
             )}
         </button>
     );

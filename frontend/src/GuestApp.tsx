@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './api';
 import { getStompClient, onWsConnect } from './ws';
-import ThemeToggle, { useTheme } from './ThemeToggle';
-import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon, WifiIcon, ClockIcon, MapPinIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { useTheme } from './ThemeToggle';
+import { BellIcon, CreditCardIcon, CheckCircleIcon, FireIcon, InformationCircleIcon, BanknotesIcon, WifiIcon, ClockIcon, MapPinIcon, PhoneIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
 
@@ -27,19 +27,12 @@ export default function GuestApp() {
                     <h1 className="text-xs sm:text-sm font-semibold tracking-widest text-slate-500 dark:text-slate-400 uppercase">Стіл {tableNum}</h1>
                     <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Ваше меню</div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <ThemeToggle 
-                        theme={theme} 
-                        toggle={toggle} 
-                        className="p-2.5 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700/80 shadow-xs hover:scale-105 active:scale-95 transition-all" 
-                    />
-                    <CallWaiterButton />
-                </div>
+                <CallWaiterButton />
             </header>
             <main className="p-6">
                 <GuestFlow />
             </main>
-            <Footer info={restaurantInfo} />
+            <Footer info={restaurantInfo} theme={theme} toggle={toggle} />
         </div>
     );
 }
@@ -83,10 +76,23 @@ function CallWaiterButton() {
 
     return (
         <>
-            <button onClick={call} className={`relative p-3 rounded-full transition-all duration-500 shadow-xs ${calling ? 'bg-amber-500 text-white scale-110 shadow-amber-500/40 ring-4 ring-amber-500/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-105 ring-1 ring-slate-200 dark:ring-slate-700/80'}`} title="Покликати офіціанта">
-                <BellIcon className={`w-6 h-6 ${calling ? 'animate-wiggle' : ''}`} />
-                {calling && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full animate-ping"></span>}
-                {calling && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full"></span>}
+            <button
+                onClick={call}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-300 text-xs font-bold shadow-xs active:scale-95 ${
+                    calling
+                        ? 'bg-amber-500 text-white shadow-amber-500/30 ring-4 ring-amber-500/20 animate-pulse'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 ring-1 ring-slate-200 dark:ring-slate-700/80 hover:scale-105'
+                }`}
+                title={calling ? 'Натисніть, щоб скасувати виклик' : 'Покликати офіціанта до вашого столу'}
+            >
+                <BellIcon className={`w-4 h-4 shrink-0 ${calling ? 'animate-wiggle text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span>{calling ? 'Офіціант іде...' : 'Офіціант'}</span>
+                {calling && (
+                    <span className="relative flex h-2 w-2 ml-0.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                    </span>
+                )}
             </button>
             
             {showToast && createPortal(
@@ -168,7 +174,7 @@ function GuestFlow() {
                                 <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
                                 <span className="text-lg">Оформити ({count})</span>
                             </div>
-                            <span className="text-xl tracking-tight">{totalAmount} ₴ →</span>
+                            <span className="text-xl tracking-tight">{totalAmount}&nbsp;₴ →</span>
                         </div>
                     </button>
                 </div>
@@ -225,7 +231,7 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                             }`}>
                                 {o.status === 'NEW' ? 'В черзі' : o.status === 'PREPARING' ? 'Готується' : 'Готово'}
                             </span>
-                            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{o.total} ₴</span>
+                            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">{o.total}&nbsp;₴</span>
                         </div>
                         <div className="text-sm text-slate-500 dark:text-slate-400 mb-5 space-y-2.5">
                             {o.items.map((i: any, idx: number) => {
@@ -269,11 +275,51 @@ function ActiveOrders({ orders }: { orders: any[] }) {
                                 </div>
                             )})}
                         </div>
+
+                        {/* Знижка за акцією (якщо застосована) */}
+                        {o.discountAmount > 0 && (
+                            <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex justify-between items-center text-xs gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-bold text-emerald-800 dark:text-emerald-300 truncate">
+                                        🎉 {o.appliedPromotionTitle}
+                                    </div>
+                                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
+                                        Сума без знижки: {o.subtotal || (Number(o.total) + Number(o.discountAmount))}&nbsp;₴
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0 whitespace-nowrap">
+                                    <span className="font-black text-sm text-emerald-600 dark:text-emerald-400 whitespace-nowrap inline-block">
+                                        -{o.discountAmount}&nbsp;₴
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {!o.paid && (!o.discountAmount || o.discountAmount === 0) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    api.post("/service-calls", { type: "WAITER" })
+                                        .then(() => alert("Офіціанта викликано до вашого столу для перевірки та активації святкової знижки!"))
+                                        .catch(() => alert("Помилка виклику офіціанта"));
+                                }}
+                                className="w-full mb-3 p-2.5 rounded-2xl bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-between transition-colors active:scale-98"
+                            >
+                                <span className="flex items-center gap-1.5">
+                                    <span>🎂</span>
+                                    <span>У вас День народження чи свято?</span>
+                                </span>
+                                <span className="text-[11px] underline font-bold text-amber-700 dark:text-amber-300">
+                                    Повідомити офіціанта →
+                                </span>
+                            </button>
+                        )}
+
                         {!o.paid ? (
                             <div className="flex flex-col gap-2 mt-4">
                                 <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-xs">
                                     <CreditCardIcon className="w-5 h-5" />
-                                    {checkingOut === o.id ? 'Зачекайте...' : 'Оплатити онлайн (LiqPay)'}
+                                    {checkingOut === o.id ? 'Зачекайте...' : `Оплатити онлайн ${o.total} ₴ (LiqPay)`}
                                 </button>
                                 <button onClick={() => {
                                     api.post('/service-calls', { type: 'BILL' }).then(() => alert('Офіціант зараз підійде з рахунком!'));
@@ -688,7 +734,7 @@ function Menu({
     );
 }
 
-function Footer({ info }: { info: any }) {
+function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; toggle: () => void }) {
     const name = info?.name || 'Ресторан «RestoFlow»';
     const description = info?.description || 'Авторська кухня, затишна атмосфера та швидкий сервіс';
     const wifiSsid = info?.wifiSsid || 'Resto_Guest';
@@ -712,6 +758,46 @@ function Footer({ info }: { info: any }) {
 
             {/* Швидкі картки з інформацією */}
             <div className="space-y-3 mb-6">
+                {/* Перемикач теми оформлення */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-100/70 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                            {theme === 'dark' ? <MoonIcon className="w-5 h-5" /> : <SunIcon className="w-5 h-5" />}
+                        </div>
+                        <div className="text-left">
+                            <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">Оформлення</div>
+                            <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                {theme === 'dark' ? 'Темна тема' : 'Світла тема'}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center bg-white dark:bg-slate-700/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-600 shadow-2xs gap-1">
+                        <button
+                            type="button"
+                            onClick={() => { if (theme === 'dark') toggle(); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                theme === 'light'
+                                    ? 'bg-indigo-600 text-white shadow-2xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                            }`}
+                        >
+                            <SunIcon className="w-3.5 h-3.5" />
+                            <span>Світла</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { if (theme === 'light') toggle(); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                theme === 'dark'
+                                    ? 'bg-indigo-600 text-white shadow-2xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                            }`}
+                        >
+                            <MoonIcon className="w-3.5 h-3.5" />
+                            <span>Темна</span>
+                        </button>
+                    </div>
+                </div>
                 {/* Wi-Fi плашка */}
                 {wifiSsid && (
                     <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">

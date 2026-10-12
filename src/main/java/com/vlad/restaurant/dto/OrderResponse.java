@@ -15,7 +15,11 @@ public record OrderResponse(
         OrderStatus status,
         LocalDateTime createdAt,
         List<Item> items,
+        BigDecimal subtotal,
+        BigDecimal discountAmount,
         BigDecimal total,
+        String appliedPromotionTitle,
+        UUID appliedPromotionId,
         boolean paid,
         LocalDateTime preparingAt,
         LocalDateTime readyAt,
@@ -44,16 +48,23 @@ public record OrderResponse(
                         i.getMenuItem().getCategory() != null ? i.getMenuItem().getCategory().getName() : null,
                         i.getStatus() != null ? i.getStatus() : OrderItemStatus.NEW))
                 .toList();
-        BigDecimal total = items.stream()
+        BigDecimal subtotal = items.stream()
                 .map(i -> i.priceAtTime().multiply(BigDecimal.valueOf(i.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal total = subtotal.subtract(discount).max(BigDecimal.ZERO);
+
         return new OrderResponse(
                 order.getId(),
                 order.getTable() != null ? order.getTable().getNumber() : null,
                 order.getStatus(),
                 order.getCreatedAt(),
                 items,
+                subtotal,
+                discount,
                 total,
+                order.getAppliedPromotionTitle(),
+                order.getAppliedPromotion() != null ? order.getAppliedPromotion().getId() : null,
                 order.isPaid(),
                 order.getPreparingAt(),
                 order.getReadyAt(),

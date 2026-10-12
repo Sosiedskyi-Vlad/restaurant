@@ -32,6 +32,9 @@ interface Order {
     readyAt?: string;
     paidAt?: string;
     items: OrderItem[];
+    subtotal?: number;
+    discountAmount?: number;
+    appliedPromotionTitle?: string;
     total: number;
     paid: boolean;
 }
@@ -369,7 +372,12 @@ export default function OrderHistory({ role }: { role: string }) {
                                             </td>
 
                                             <td className="p-4 font-black text-slate-900 dark:text-white">
-                                                {order.total} ₴
+                                                <div>{order.total} ₴</div>
+                                                {order.discountAmount && order.discountAmount > 0 ? (
+                                                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
+                                                        знижка -{order.discountAmount} ₴
+                                                    </div>
+                                                ) : null}
                                             </td>
 
                                             <td className="p-4 pr-6 text-right">
@@ -523,13 +531,27 @@ export default function OrderHistory({ role }: { role: string }) {
                             </div>
 
                             {/* Загальний підсумок */}
-                            <div className="pt-2 flex justify-between items-baseline border-t border-slate-200 dark:border-slate-700">
-                                <span className="font-extrabold text-slate-900 dark:text-white text-base">
-                                    Всього до сплати:
-                                </span>
-                                <span className="font-black text-2xl text-emerald-600 dark:text-emerald-400">
-                                    {selectedOrder.total} ₴
-                                </span>
+                            <div className="pt-2 flex flex-col gap-1.5 border-t border-slate-200 dark:border-slate-700">
+                                {selectedOrder.discountAmount && selectedOrder.discountAmount > 0 ? (
+                                    <>
+                                        <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                                            <span>Сума без знижки:</span>
+                                            <span className="font-bold">{selectedOrder.subtotal || (Number(selectedOrder.total) + Number(selectedOrder.discountAmount))} ₴</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                                            <span>🎉 {selectedOrder.appliedPromotionTitle || 'Знижка'}:</span>
+                                            <span>-{selectedOrder.discountAmount} ₴</span>
+                                        </div>
+                                    </>
+                                ) : null}
+                                <div className="flex justify-between items-baseline pt-1">
+                                    <span className="font-extrabold text-slate-900 dark:text-white text-base">
+                                        Всього до сплати:
+                                    </span>
+                                    <span className="font-black text-2xl text-emerald-600 dark:text-emerald-400">
+                                        {selectedOrder.total} ₴
+                                    </span>
+                                </div>
                             </div>
                         </div>
 

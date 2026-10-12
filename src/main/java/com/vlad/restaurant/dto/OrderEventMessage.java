@@ -11,6 +11,7 @@ public record OrderEventMessage(
     public enum Type {
         ORDER_CREATED,
         ORDER_STATUS_CHANGED,
-        ORDER_PAID
+        ORDER_PAID,
+        ORDER_PROMOTION_UPDATED
     }
 }

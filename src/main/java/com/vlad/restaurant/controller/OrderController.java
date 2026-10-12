@@ -1,5 +1,6 @@
 package com.vlad.restaurant.controller;
 
+import com.vlad.restaurant.dto.ApplyPromotionRequest;
 import com.vlad.restaurant.dto.OrderCreateRequest;
 import com.vlad.restaurant.dto.OrderResponse;
 import com.vlad.restaurant.dto.StatusUpdateRequest;
@@ -139,5 +140,15 @@ public class OrderController {
     @GetMapping("/{id}")
     public OrderResponse getOrder(@PathVariable UUID id, Authentication auth) {
         return orderService.getOrder(id, auth);
+    }
+
+    @PostMapping("/{id}/apply-promotion")
+    @PreAuthorize("hasAnyRole('WAITER', 'ADMIN')")
+    public OrderResponse applyPromotion(
+            @PathVariable UUID id,
+            @RequestBody(required = false) ApplyPromotionRequest request
+    ) {
+        UUID promoId = request != null ? request.promotionId() : null;
+        return orderService.applyPromotion(id, promoId);
     }
 }

@@ -96,6 +96,9 @@ public class PromotionService {
         if (request.displayOrder() != null) {
             p.setDisplayOrder(request.displayOrder());
         }
+        if (request.discountPercent() != null) {
+            p.setDiscountPercent(request.discountPercent());
+        }
     }
 
     private List<PromotionResponse> toResponses(List<Promotion> list) {

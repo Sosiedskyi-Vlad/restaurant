@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +49,17 @@ public class Order {
     // гість може оплатити наперед, поки замовлення ще готується.
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean paid = false;
+
+    // Знижка за акцією
+    @Column(name = "discount_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "applied_promotion_id")
+    private Promotion appliedPromotion;
+
+    @Column(name = "applied_promotion_title")
+    private String appliedPromotionTitle;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();

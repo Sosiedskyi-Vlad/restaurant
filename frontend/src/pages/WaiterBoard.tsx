@@ -22,6 +22,7 @@ export default function WaiterBoard() {
     const [hallElements, setHallElements] = useState<HallElementItem[]>([]);
     const [currentZone, setCurrentZone] = useState('MAIN');
     const [selectedTable, setSelectedTable] = useState<any>(null);
+    const [availablePromos, setAvailablePromos] = useState<any[]>([]);
     const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
     
     const loadData = async () => {
@@ -43,6 +44,9 @@ export default function WaiterBoard() {
     
     useEffect(() => {
         loadData();
+        api.get('/promotions/active')
+            .then(res => setAvailablePromos(res.data.filter((p: any) => p.discountPercent > 0)))
+            .catch(() => {});
         const client = getStompClient();
         if (!client) return;
         const unsubConnect = onWsConnect(() => {
@@ -71,6 +75,15 @@ export default function WaiterBoard() {
             window.dispatchEvent(new Event('refresh-badges'));
         } catch (e: any) {
             alert(e.response?.data?.message || 'Помилка оновлення статусу');
+        }
+    };
+
+    const handleApplyPromotion = async (orderId: string, promotionId: string | null) => {
+        try {
+            await api.post(`/orders/${orderId}/apply-promotion`, { promotionId });
+            loadData();
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Помилка зміни знижки');
         }
     };
 
@@ -714,8 +727,60 @@ export default function WaiterBoard() {
                                                     );
                                                 })}
                                             </ul>
-                                            <div className="text-right font-black text-lg border-t border-slate-200 dark:border-slate-700 pt-2">
-                                                {o.total} ₴
+                                            <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3 flex flex-col gap-2">
+                                                {o.discountAmount > 0 ? (
+                                                    <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <span className="text-emerald-700 dark:text-emerald-300 font-bold truncate">
+                                                                🎉 {o.appliedPromotionTitle}
+                                                            </span>
+                                                            <span className="font-black text-emerald-600 dark:text-emerald-400">
+                                                                (-{o.discountAmount} ₴)
+                                                            </span>
+                                                        </div>
+                                                        {!o.paid && (
+                                                            <button
+                                                                onClick={() => handleApplyPromotion(o.id, null)}
+                                                                className="text-slate-400 hover:text-red-500 font-semibold px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors ml-2 shrink-0"
+                                                                title="Скасувати знижку"
+                                                            >
+                                                                ✕ Скасувати
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    !o.paid && availablePromos.length > 0 && (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[11px] text-slate-400 font-bold shrink-0">Акція / знижка:</span>
+                                                            <div className="flex flex-wrap gap-1.5 flex-1">
+                                                                {availablePromos.map((promo: any) => (
+                                                                    <button
+                                                                        key={promo.id}
+                                                                        onClick={() => handleApplyPromotion(o.id, promo.id)}
+                                                                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition-all active:scale-95 shadow-2xs"
+                                                                        title={`Застосувати знижку ${promo.discountPercent}%`}
+                                                                    >
+                                                                        {promo.badgeText || '🏷️'} {promo.title} (-{promo.discountPercent}%)
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                )}
+
+                                                <div className="flex items-baseline justify-between pt-1">
+                                                    {o.discountAmount > 0 ? (
+                                                        <div className="text-xs text-slate-400">
+                                                            Сума страв: <span className="line-through">{o.subtotal || (Number(o.total) + Number(o.discountAmount))} ₴</span>
+                                                        </div>
+                                                    ) : <div />}
+                                                    <div className="text-right">
+                                                        <span className="text-xs text-slate-400 mr-2">До оплати:</span>
+                                                        <span className="font-black text-xl text-slate-900 dark:text-white">
+                                                            {o.total} ₴
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     );
