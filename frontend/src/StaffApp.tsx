@@ -8,6 +8,7 @@ import AdminAnalytics from './pages/AdminAnalytics';
 import AdminMenu from './pages/AdminMenu';
 import AdminTables from './pages/AdminTables';
 import AdminSettings from './pages/AdminSettings';
+import AdminPromotions from './pages/AdminPromotions';
 import ThemeToggle, { useTheme } from './ThemeToggle';
 import { 
     ChartBarIcon, 
@@ -17,7 +18,8 @@ import {
     PowerIcon, 
     QrCodeIcon, 
     BuildingStorefrontIcon,
-    ClockIcon
+    ClockIcon,
+    MegaphoneIcon
 } from '@heroicons/react/24/outline';
 
 export default function StaffApp({ role, setRole }: { role: string, setRole: any }) {
@@ -110,6 +112,7 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
                             </div>
                             <LinkItem to="/staff/analytics" icon={<ChartBarIcon className="w-5 h-5"/>} label="Аналітика" />
                             <LinkItem to="/staff/menu" icon={<ClipboardDocumentListIcon className="w-5 h-5"/>} label="Редактор меню" />
+                            <LinkItem to="/staff/promotions" icon={<MegaphoneIcon className="w-5 h-5"/>} label="Акції та новини" />
                             <LinkItem to="/staff/tables" icon={<QrCodeIcon className="w-5 h-5"/>} label="Столи та QR-коди" />
                             <LinkItem to="/staff/settings" icon={<BuildingStorefrontIcon className="w-5 h-5"/>} label="Заклад і Wi-Fi" />
                         </>
@@ -139,6 +142,7 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
                     <Route path="/orders" element={<OrderHistory role={role} />} />
                     <Route path="/analytics" element={<AdminAnalytics />} />
                     <Route path="/menu" element={<AdminMenu />} />
+                    <Route path="/promotions" element={<AdminPromotions />} />
                     <Route path="/tables" element={<AdminTables />} />
                     <Route path="/settings" element={<AdminSettings />} />
                     <Route path="/" element={<div className="h-full flex items-center justify-center text-slate-400 font-medium text-lg">Оберіть розділ меню зліва</div>} />

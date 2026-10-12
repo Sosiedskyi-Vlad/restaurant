@@ -2,11 +2,13 @@ package com.vlad.restaurant.config;
 
 import com.vlad.restaurant.entity.Category;
 import com.vlad.restaurant.entity.MenuItem;
+import com.vlad.restaurant.entity.Promotion;
 import com.vlad.restaurant.entity.RestaurantTable;
 import com.vlad.restaurant.entity.Role;
 import com.vlad.restaurant.entity.User;
 import com.vlad.restaurant.repository.CategoryRepository;
 import com.vlad.restaurant.repository.MenuItemRepository;
+import com.vlad.restaurant.repository.PromotionRepository;
 import com.vlad.restaurant.repository.RestaurantTableRepository;
 import com.vlad.restaurant.repository.UserRepository;
 import com.vlad.restaurant.service.TableService;
@@ -29,6 +31,7 @@ public class DataInitializer implements CommandLineRunner {
     private final RestaurantTableRepository tableRepository;
     private final CategoryRepository categoryRepository;
     private final MenuItemRepository menuItemRepository;
+    private final PromotionRepository promotionRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -50,7 +53,7 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
 
-                if (categoryRepository.count() < 5) {
+        if (categoryRepository.count() < 5) {
             Category breakfasts = saveCategory("Сніданки");
             Category main = saveCategory("Основні страви");
             Category pizza = saveCategory("Піца");
@@ -93,6 +96,74 @@ public class DataInitializer implements CommandLineRunner {
             saveItem("Чизкейк Нью-Йорк", "150.00", "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=600&q=80", desserts, "Крем-сир, вершки, яйця, цукор, пісочна основа, ванільний екстракт", "Глютен, Лактоза, Яйця", 490);
             saveItem("Макаруни (сет 5 шт)", "220.00", "https://images.unsplash.com/photo-1569864358642-9d1684040f43?w=600&q=80", desserts, "Мигдальне борошно, білки, цукор, ганаш на основі білого шоколаду та фруктових пюре", "Горіхи, Яйця, Лактоза", 275);
         }
+
+        if (promotionRepository.count() == 0) {
+            seedPromotions();
+        }
+    }
+
+    private void seedPromotions() {
+        Long pizzaId = menuItemRepository.findAll().stream()
+                .filter(i -> i.getName().contains("Чотири Сири"))
+                .map(MenuItem::getId)
+                .findFirst()
+                .orElse(null);
+
+        Promotion p1 = new Promotion();
+        p1.setTitle("Знижка 15% до Дня народження");
+        p1.setBadgeText("🎂 СВЯТО");
+        p1.setShortDescription("Святкуйте разом з нами! Отримайте -15% на все меню та солодкий комплімент від шефа.");
+        p1.setFullContent("""
+                🎉 Святкуйте свій День народження у нашому ресторані та отримуйте знижку 15% на весь чек!
+
+                Умови акції:
+                • Знижка діє безпосередньо у день народження та протягом 6 днів після нього.
+                • Для отримання знижки покажіть офіціанту будь-який документ, що підтверджує дату народження (паспорт, права або додаток «Дія»).
+                • Додатково кожен іменинник отримує фірмовий святковий десерт зі свічкою у подарунок!
+                • Знижка не сумується з іншими акційними пропозиціями ресторану.
+                """);
+        p1.setImageUrl("https://images.unsplash.com/photo-1513151233558-d860c5398176?w=1000&q=80");
+        p1.setActionType("CALL_WAITER");
+        p1.setActive(true);
+        p1.setDisplayOrder(0);
+        promotionRepository.save(p1);
+
+        Promotion p2 = new Promotion();
+        p2.setTitle("Щасливі години: Піца «Чотири Сири» -20%");
+        p2.setBadgeText("🔥 -20%");
+        p2.setShortDescription("Спеціальна ціна щодня з 14:00 до 17:00 на улюблену сирну класику.");
+        p2.setFullContent("""
+                🧀 Справжній рай для сирних гурманів! Щодня з 14:00 до 17:00 замовляйте нашу фірмову піцу «Чотири Сири» з витриманими італійськими сирами зі знижкою 20%.
+
+                Склад страви: хрустке тісто ферментації 48 годин, ніжний вершковий соус, моцарела, пікантна горгонзола, пармезан та швейцарський емменталь.
+
+                Натисніть кнопку нижче, щоб одразу замовити страву до вашого столу!
+                """);
+        p2.setImageUrl("https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1000&q=80");
+        p2.setActionType(pizzaId != null ? "MENU_ITEM" : "NONE");
+        p2.setTargetMenuItemId(pizzaId);
+        p2.setActive(true);
+        p2.setDisplayOrder(1);
+        promotionRepository.save(p2);
+
+        Promotion p3 = new Promotion();
+        p3.setTitle("Сезонний зігріваючий авторський чай");
+        p3.setBadgeText("☕ НОВИНКА");
+        p3.setShortDescription("Обліпиха-розмарин та цитрусовий мікс зі свіжим імбирем та медом.");
+        p3.setFullContent("""
+                🍂 Зустрічайте нашу затишну сезонну новинку — вітамінний натуральний чай з обліпихою, гілочкою свіжого розмарину, апельсином, гвоздикою та карпатським медом.
+
+                Ідеально зігріває та піднімає настрій у прохолодний день. Подається у скляному чайничку об'ємом 600 мл.
+
+                Спитайте вашого офіціанта або замовляйте у розділі «Напої»!
+                """);
+        p3.setImageUrl("https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=1000&q=80");
+        p3.setActionType("NONE");
+        p3.setActive(true);
+        p3.setDisplayOrder(2);
+        promotionRepository.save(p3);
+
+        log.info("Створено початкові акції для банерного слайдера");
     }
 
     private void createUser(String email, String rawPassword, Role role) {

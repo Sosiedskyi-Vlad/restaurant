@@ -1,3 +1,4 @@
+import PromoCarousel from './components/PromoCarousel';
 import LeafletMap from './components/LeafletMap';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -117,6 +118,7 @@ type CartItem = {
 function GuestFlow() {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [orders, setOrders] = useState<any[]>([]);
+    const [targetPromoMenuItemId, setTargetPromoMenuItemId] = useState<number | null>(null);
 
     const fetchOrders = () => api.get('/orders/my').then(res => setOrders(res.data));
     useEffect(() => {
@@ -149,8 +151,14 @@ function GuestFlow() {
 
     return (
         <div className="space-y-8 relative">
+            <PromoCarousel onSelectMenuItem={(id) => setTargetPromoMenuItemId(id)} />
             {orders.length > 0 && <ActiveOrders orders={orders} />}
-            <Menu cart={cart} setCart={setCart} />
+            <Menu 
+                cart={cart} 
+                setCart={setCart} 
+                targetPromoMenuItemId={targetPromoMenuItemId} 
+                clearTargetPromo={() => setTargetPromoMenuItemId(null)} 
+            />
             
             {count > 0 && (
                 <div className="fixed bottom-6 left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
@@ -286,7 +294,17 @@ function ActiveOrders({ orders }: { orders: any[] }) {
     );
 }
 
-function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
+function Menu({ 
+    cart, 
+    setCart,
+    targetPromoMenuItemId,
+    clearTargetPromo
+}: { 
+    cart: CartItem[]; 
+    setCart: any;
+    targetPromoMenuItemId?: number | null;
+    clearTargetPromo?: () => void;
+}) {
     const [items, setItems] = useState<any[]>([]);
     const [activeCategory, setActiveCategory] = useState<string>('');
     const [selectedItem, setSelectedItem] = useState<any>(null); // Для модалки
@@ -308,6 +326,19 @@ function Menu({ cart, setCart }: { cart: CartItem[], setCart: any }) {
             if (saved) setLikedItems(new Set(JSON.parse(saved)));
         } catch(e) {}
     }, []);
+
+    // При кліку на акцію зі стравою відкриваємо модалку страви та активуємо її категорію
+    useEffect(() => {
+        if (!targetPromoMenuItemId || items.length === 0) return;
+        const target = items.find((i: any) => i.id === targetPromoMenuItemId);
+        if (target) {
+            if (target.categoryName) {
+                setActiveCategory(target.categoryName);
+            }
+            openModal(target);
+            if (clearTargetPromo) clearTargetPromo();
+        }
+    }, [targetPromoMenuItemId, items]);
     
     // Обчислення ціни в модалці при зміні опцій
     useEffect(() => {
