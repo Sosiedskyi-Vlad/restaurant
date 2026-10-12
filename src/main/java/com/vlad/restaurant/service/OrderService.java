@@ -19,9 +19,16 @@ import com.vlad.restaurant.repository.MenuItemRepository;
 import com.vlad.restaurant.repository.OrderRepository;
 import com.vlad.restaurant.repository.RestaurantTableRepository;
 import com.vlad.restaurant.security.GuestPrincipal;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -29,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,7 +49,7 @@ public class OrderService {
 
     // Допустимі переходи статусів (вперед та відкат назад Undo):
     // Вперед: NEW -> PREPARING -> READY -> PAID
-    // Відкат (Undo): PREPARING -> NEW, READY -> PREPARING
+    // Відкат (Undo): PREPARING -> NEW, READY -> PREPARING, PAID -> READY (Recall)
     private static final Map<OrderStatus, Map<OrderStatus, Set<String>>> ALLOWED_TRANSITIONS = Map.of(
             OrderStatus.NEW, Map.of(
                     OrderStatus.PREPARING, Set.of("ROLE_COOK", "ROLE_ADMIN")
@@ -53,6 +61,9 @@ public class OrderService {
             OrderStatus.READY, Map.of(
                     OrderStatus.PAID, Set.of("ROLE_WAITER", "ROLE_ADMIN"),
                     OrderStatus.PREPARING, Set.of("ROLE_COOK", "ROLE_ADMIN") // Відкат у "Готується"
+            ),
+            OrderStatus.PAID, Map.of(
+                    OrderStatus.READY, Set.of("ROLE_WAITER", "ROLE_ADMIN", "ROLE_COOK") // Відкат/Recall у "Очікують видачі"
             )
     );
 
@@ -245,6 +256,93 @@ public class OrderService {
         eventPublisher.publishEvent(new OrderEvent(tId,
                 new OrderEventMessage(OrderEventMessage.Type.ORDER_STATUS_CHANGED, current, response)));
         return response;
+    }
+
+    // Повернення випадково закритого або оплаченого замовлення назад у роботу (Recall)
+    @Transactional
+    public OrderResponse recallOrder(UUID id, Authentication auth) {
+        Order order = orderRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Замовлення не знайдено"));
+
+        OrderStatus current = order.getStatus();
+        if (current != OrderStatus.PAID) {
+            throw new BadRequestException("Повернути в роботу можна лише закриті/оплачені замовлення");
+        }
+
+        order.setStatus(OrderStatus.READY);
+        order.setReadyAt(LocalDateTime.now());
+        // Скидаємо статус страв із SERVED назад у READY
+        order.getItems().forEach(i -> {
+            if (i.getStatus() == OrderItemStatus.SERVED) {
+                i.setStatus(OrderItemStatus.READY);
+            }
+        });
+
+        Order saved = orderRepository.save(order);
+        OrderResponse response = OrderResponse.from(saved);
+        UUID tId = order.getTable() != null ? order.getTable().getId() : null;
+
+        eventPublisher.publishEvent(new OrderEvent(tId,
+                new OrderEventMessage(OrderEventMessage.Type.ORDER_STATUS_CHANGED, current, response)));
+        log.info("Замовлення {} успішно відкликано (Recall) назад у статус READY користувачем {}", id, auth.getName());
+        return response;
+    }
+
+    // Останні завершені замовлення (для швидкого recall в KDS)
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getRecentlyClosedOrders() {
+        return orderRepository.findTop10ByStatusOrderByCreatedAtDesc(OrderStatus.PAID)
+                .stream().map(OrderResponse::from).toList();
+    }
+
+    // Історія замовлень із гнучкими фільтрами, Specification та пагінацією
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> getOrderHistory(
+            OrderStatus status,
+            Integer tableNumber,
+            LocalDateTime from,
+            LocalDateTime to,
+            String search,
+            Pageable pageable
+    ) {
+        Specification<Order> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (tableNumber != null) {
+                predicates.add(cb.equal(root.get("table").get("number"), tableNumber));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThan(root.get("createdAt"), to));
+            }
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.trim().toLowerCase() + "%";
+
+                // Перевірка назви страви через EXISTS підзапит (не ламає пагінацію і distinct)
+                Subquery<Integer> itemSubquery = query.subquery(Integer.class);
+                Root<OrderItem> itemRoot = itemSubquery.from(OrderItem.class);
+                itemSubquery.select(cb.literal(1))
+                        .where(
+                                cb.equal(itemRoot.get("order"), root),
+                                cb.like(cb.lower(itemRoot.get("menuItem").get("name")), pattern)
+                        );
+
+                // Перевірка номеру столу як рядка
+                Expression<String> tableNumStr = root.get("table").get("number").as(String.class);
+                Predicate tableMatch = cb.like(tableNumStr, pattern);
+
+                predicates.add(cb.or(tableMatch, cb.exists(itemSubquery)));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return orderRepository.findAll(spec, pageable).map(OrderResponse::from);
     }
 
     // Оновлення статусу окремої страви в замовленні (поштучний KDS чекліст)

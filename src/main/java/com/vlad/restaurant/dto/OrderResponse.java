@@ -16,7 +16,10 @@ public record OrderResponse(
         LocalDateTime createdAt,
         List<Item> items,
         BigDecimal total,
-        boolean paid
+        boolean paid,
+        LocalDateTime preparingAt,
+        LocalDateTime readyAt,
+        LocalDateTime paidAt
 ) {
     public record Item(
             UUID id, 
@@ -51,6 +54,9 @@ public record OrderResponse(
                 order.getCreatedAt(),
                 items,
                 total,
-                order.isPaid());
+                order.isPaid(),
+                order.getPreparingAt(),
+                order.getReadyAt(),
+                order.getPaidAt());
     }
 }
