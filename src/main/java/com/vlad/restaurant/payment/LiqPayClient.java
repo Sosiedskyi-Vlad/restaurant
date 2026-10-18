@@ -1,12 +1,13 @@
 package com.vlad.restaurant.payment;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vlad.restaurant.exception.ServiceUnavailableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -32,7 +33,7 @@ public class LiqPayClient {
     // Результат розбору відповіді/callback від LiqPay
     public record Result(String status, UUID paymentId, BigDecimal amount, String currency, String providerPaymentId) {}
 
-    private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
@@ -157,16 +158,24 @@ public class LiqPayClient {
     }
 
     private Result parseJson(String json) {
-        JsonNode n = JSON.readTree(json);
-        return new Result(
-                n.path("status").asString(""),
-                UUID.fromString(n.path("order_id").asString("")),
-                new BigDecimal(n.path("amount").asString("0")),
-                n.path("currency").asString(""),
-                n.path("payment_id").asString(""));
+        try {
+            JsonNode n = JSON.readTree(json);
+            return new Result(
+                    n.path("status").asText(""),
+                    UUID.fromString(n.path("order_id").asText("")),
+                    new BigDecimal(n.path("amount").asText("0")),
+                    n.path("currency").asText(""),
+                    n.path("payment_id").asText(""));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Некоректний JSON від LiqPay", e);
+        }
     }
 
     private String encode(Map<String, Object> params) {
-        return Base64.getEncoder().encodeToString(JSON.writeValueAsBytes(params));
+        try {
+            return Base64.getEncoder().encodeToString(JSON.writeValueAsBytes(params));
+        } catch (IOException e) {
+            throw new IllegalStateException("Помилка серіалізації параметрів LiqPay", e);
+        }
     }
 }

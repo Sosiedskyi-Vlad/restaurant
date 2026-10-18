@@ -1,12 +1,14 @@
 package com.vlad.restaurant.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import java.util.UUID;
 
 @Entity
 @Table(name = "hall_elements")
-@Data
+@Getter
+@Setter
 public class HallElement {
 
     @Id
@@ -17,7 +19,7 @@ public class HallElement {
     private String name;
 
     @Column(nullable = false)
-    private String type; // BAR, KITCHEN, ENTRANCE, WC, WALL, PLANT
+    private String type; // BAR, KITCHEN, ENTRANCE, WC, WALL, PLANT, VOID
 
     @Column(nullable = false)
     private String zone = "MAIN";

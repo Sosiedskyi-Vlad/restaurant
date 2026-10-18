@@ -1,14 +1,18 @@
 package com.vlad.restaurant.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "menu_items")
-@Data
+@BatchSize(size = 50)
+@Getter
+@Setter
 public class MenuItem {
 
     @Id
@@ -42,7 +46,7 @@ public class MenuItem {
     @ColumnDefault("true")
     private boolean active = true;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
 

@@ -12,7 +12,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,29 +21,29 @@ import java.util.UUID;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
 
-    // EntityGraph підтягує стіл, позиції та страви одним запитом (без N+1)
-    @EntityGraph(attributePaths = {"table", "items", "items.menuItem"})
+    // EntityGraph підтягує стіл, позиції, страви та їхні категорії одним запитом (без N+1)
+    @EntityGraph(attributePaths = {"table", "items", "items.menuItem", "items.menuItem.category"})
     Optional<Order> findWithDetailsById(UUID id);
 
     // Активні (неоплачені) замовлення столу - для гостя
-    @EntityGraph(attributePaths = {"table", "items", "items.menuItem"})
+    @EntityGraph(attributePaths = {"table", "items", "items.menuItem", "items.menuItem.category"})
     List<Order> findAllByTableIdAndStatusNotOrderByCreatedAtAsc(UUID tableId, OrderStatus status);
 
     // Усі активні замовлення - дошка кухні/офіціанта, найстаріші першими
-    @EntityGraph(attributePaths = {"table", "items", "items.menuItem"})
+    @EntityGraph(attributePaths = {"table", "items", "items.menuItem", "items.menuItem.category"})
     List<Order> findAllByStatusNotOrderByCreatedAtAsc(OrderStatus status);
 
-    @EntityGraph(attributePaths = {"table", "items", "items.menuItem"})
+    @EntityGraph(attributePaths = {"table", "items", "items.menuItem", "items.menuItem.category"})
     List<Order> findAllByStatusOrderByCreatedAtAsc(OrderStatus status);
 
     // Останні закриті замовлення (для швидкого recall в KDS та офіціантів)
-    @EntityGraph(attributePaths = {"table", "items", "items.menuItem"})
+    @EntityGraph(attributePaths = {"table", "items", "items.menuItem", "items.menuItem.category"})
     List<Order> findTop10ByStatusOrderByCreatedAtDesc(OrderStatus status);
 
     // Динамічний пошук та фільтрація історії замовлень з пагінацією та EntityGraph
     @Override
-    @EntityGraph(attributePaths = {"table", "items", "items.menuItem"})
-    Page<Order> findAll(@Nullable Specification<Order> spec, Pageable pageable);
+    @EntityGraph(attributePaths = {"table", "items", "items.menuItem", "items.menuItem.category"})
+    Page<Order> findAll(Specification<Order> spec, Pageable pageable);
 
     // Блокує рядок на час транзакції: двоє людей не змінять статус одночасно.
     // Без EntityGraph навмисне: PostgreSQL не дозволяє FOR UPDATE разом з outer join.

@@ -1,12 +1,17 @@
 package com.vlad.restaurant.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
+
 import java.util.UUID;
 
 @Entity
 @Table(name = "restaurant_tables")
-@Data
+@BatchSize(size = 50)
+@Getter
+@Setter
 public class RestaurantTable {
 
     @Id

@@ -8,8 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,16 +30,25 @@ public class HallElementService {
         return list.stream().map(HallElementDto::from).toList();
     }
 
+    // Оновлює існуючі елементи за ID, додає нові та видаляє лише фактично прибрані
     @Transactional
     public List<HallElementDto> saveBatch(String zone, List<HallElementDto> dtos) {
         String targetZone = (zone != null && !zone.isBlank()) ? zone : "MAIN";
-        // Знаходимо існуючі в цій зоні
         List<HallElement> existing = repository.findByZone(targetZone);
-        repository.deleteAll(existing);
+        Map<UUID, HallElement> existingById = existing.stream()
+                .filter(e -> e.getId() != null)
+                .collect(Collectors.toMap(HallElement::getId, Function.identity()));
 
+        Set<UUID> retainedIds = new HashSet<>();
         List<HallElement> toSave = new ArrayList<>();
+
         for (HallElementDto dto : dtos) {
-            HallElement el = new HallElement();
+            HallElement el = (dto.id() != null && existingById.containsKey(dto.id()))
+                    ? existingById.get(dto.id())
+                    : new HallElement();
+            if (el.getId() != null) {
+                retainedIds.add(el.getId());
+            }
             el.setName(dto.name() != null ? dto.name() : "Елемент");
             el.setType(dto.type() != null ? dto.type() : "WALL");
             el.setZone(targetZone);
@@ -45,6 +59,14 @@ public class HallElementService {
             el.setRotation(dto.rotation() != null ? dto.rotation() : 0);
             toSave.add(el);
         }
+
+        List<HallElement> toDelete = existing.stream()
+                .filter(e -> e.getId() != null && !retainedIds.contains(e.getId()))
+                .toList();
+        if (!toDelete.isEmpty()) {
+            repository.deleteAllInBatch(toDelete);
+        }
+
         return repository.saveAll(toSave).stream().map(HallElementDto::from).toList();
     }
 

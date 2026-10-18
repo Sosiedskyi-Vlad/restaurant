@@ -7,21 +7,18 @@ import com.vlad.restaurant.exception.ResourceNotFoundException;
 import com.vlad.restaurant.repository.CategoryRepository;
 import com.vlad.restaurant.repository.MenuItemRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import com.vlad.restaurant.exception.BadRequestException;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.UUID;
 
 import java.math.RoundingMode;
 import java.util.List;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +26,8 @@ public class MenuService {
 
     private final MenuItemRepository itemRepository;
     private final CategoryRepository categoryRepository;
+    private final FileStorageService fileStorageService;
+    private final CacheManager cacheManager;
 
     // ---------- Категорії ----------
 
@@ -117,19 +116,55 @@ public class MenuService {
         findActiveItem(id).setActive(false);
     }
 
-    @CacheEvict(value = "menuItems", allEntries = true)
+    // Атомарне оновлення лічильника популярності без скидання всього кешу меню (захист від Cache Thrashing)
     @Transactional
     public void likeItem(Long id) {
-        MenuItem item = findActiveItem(id);
-        item.setFavoritesCount(item.getFavoritesCount() + 1);
+        int updated = itemRepository.incrementFavoritesCount(id);
+        if (updated == 0) {
+            throw new ResourceNotFoundException("Страву з ID " + id + " не знайдено");
+        }
+        updateCachedFavoritesCount(id, 1);
     }
 
-    @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public void unlikeItem(Long id) {
-        MenuItem item = findActiveItem(id);
-        int current = item.getFavoritesCount() == null ? 0 : item.getFavoritesCount();
-        item.setFavoritesCount(Math.max(0, current - 1));
+        int updated = itemRepository.decrementFavoritesCount(id);
+        if (updated == 0) {
+            throw new ResourceNotFoundException("Страву з ID " + id + " не знайдено");
+        }
+        updateCachedFavoritesCount(id, -1);
+    }
+
+    private void updateCachedFavoritesCount(Long itemId, int delta) {
+        Cache cache = cacheManager.getCache("menuItems");
+        if (cache instanceof CaffeineCache caffeineCache) {
+            caffeineCache.getNativeCache().asMap().replaceAll((key, value) -> {
+                if (value instanceof List<?> list) {
+                    return list.stream()
+                            .map(elem -> {
+                                if (elem instanceof MenuItemResponse resp && itemId.equals(resp.id())) {
+                                    int current = resp.favoritesCount() != null ? resp.favoritesCount() : 0;
+                                    return new MenuItemResponse(
+                                            resp.id(),
+                                            resp.name(),
+                                            resp.price(),
+                                            resp.imageUrl(),
+                                            resp.ingredients(),
+                                            resp.allergens(),
+                                            resp.variations(),
+                                            Math.max(0, current + delta),
+                                            resp.isAvailable(),
+                                            resp.categoryId(),
+                                            resp.categoryName()
+                                    );
+                                }
+                                return elem;
+                            })
+                            .toList();
+                }
+                return value;
+            });
+        }
     }
 
     // ---------- Допоміжні ----------
@@ -157,28 +192,12 @@ public class MenuService {
     @CacheEvict(value = "menuItems", allEntries = true)
     @Transactional
     public MenuItemResponse uploadImage(Long id, MultipartFile file) {
-        MenuItem item = itemRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Страву не знайдено"));
-                
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/jpg"))) {
-            throw new BadRequestException("Дозволені лише формати JPG та PNG");
-        }
-        
-        try {
-            Path uploadDir = Paths.get("uploads");
-            if (!Files.exists(uploadDir)) {
-                Files.createDirectories(uploadDir);
-            }
-            
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename().replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-            Path filePath = uploadDir.resolve(filename).toAbsolutePath();
-            file.transferTo(filePath.toFile());
-            
-            item.setImageUrl("/uploads/" + filename);
-            return MenuItemResponse.from(itemRepository.save(item));
-        } catch (IOException e) {
-            throw new RuntimeException("Не вдалося зберегти файл", e);
-        }
+        MenuItem item = findActiveItem(id);
+        String oldImageUrl = item.getImageUrl();
+        String newImageUrl = fileStorageService.storeImage(file, "menu");
+        item.setImageUrl(newImageUrl);
+        MenuItemResponse response = MenuItemResponse.from(itemRepository.save(item));
+        fileStorageService.deleteLocalImageIfPresent(oldImageUrl);
+        return response;
     }
 }

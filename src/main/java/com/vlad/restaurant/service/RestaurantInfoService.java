@@ -19,34 +19,30 @@ public class RestaurantInfoService {
     @Transactional(readOnly = true)
     @Cacheable("restaurantInfo")
     public RestaurantInfoResponse getInfo() {
-        RestaurantInfo info = repository.findById(1L).orElseGet(() -> {
-            RestaurantInfo def = new RestaurantInfo();
-            def.setId(1L);
-            def.setName("Ресторан «RestoFlow»");
-            def.setDescription("Авторська кухня, затишна атмосфера та швидкий сервіс");
-            def.setWifiSsid("Resto_Guest");
-            def.setWifiPassword("resto2026");
-            def.setWorkingHours("Пн–Нд: 10:00 – 22:00");
-            def.setAddress("вул. Володимирська, 24");
-            def.setPhone("+380442345678");
-            def.setAllergensNote("Якщо у вас є харчова алергія або особливі побажання до інгредієнтів, будь ласка, повідомте про це офіціанта.");
-            def.setLatitude(50.4485);
-            def.setLongitude(30.5186);
-            RestaurantInfo saved = repository.save(def);
-            repository.flush();
-            return saved;
-        });
+        RestaurantInfo info = repository.findById(1L).orElseGet(this::buildDefaultInfo);
         return RestaurantInfoResponse.from(info);
+    }
+
+    private RestaurantInfo buildDefaultInfo() {
+        RestaurantInfo def = new RestaurantInfo();
+        def.setId(1L);
+        def.setName("Ресторан «RestoFlow»");
+        def.setDescription("Авторська кухня, затишна атмосфера та швидкий сервіс");
+        def.setWifiSsid("Resto_Guest");
+        def.setWifiPassword("resto2026");
+        def.setWorkingHours("Пн–Нд: 10:00 – 22:00");
+        def.setAddress("вул. Володимирська, 24");
+        def.setPhone("+380442345678");
+        def.setAllergensNote("Якщо у вас є харчова алергія або особливі побажання до інгредієнтів, будь ласка, повідомте про це офіціанта.");
+        def.setLatitude(50.4485);
+        def.setLongitude(30.5186);
+        return def;
     }
 
     @Transactional
     @CacheEvict(value = "restaurantInfo", allEntries = true)
     public RestaurantInfoResponse updateInfo(RestaurantInfoRequest request) {
-        RestaurantInfo info = repository.findById(1L).orElseGet(() -> {
-            RestaurantInfo def = new RestaurantInfo();
-            def.setId(1L);
-            return def;
-        });
+        RestaurantInfo info = repository.findById(1L).orElseGet(this::buildDefaultInfo);
 
         info.setName(request.name().trim());
         info.setDescription(request.description() != null ? request.description().trim() : null);

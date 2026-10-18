@@ -64,10 +64,12 @@ function CallWaiterButton() {
         const client = getStompClient();
         if (!client) return;
         const unsubConnect = onWsConnect(() => client.subscribe('/user/queue/service-calls', (msg) => {
-            const data = JSON.parse(msg.body);
-            if (data.type === 'RESOLVED') {
-                setCalling(false);
-            }
+            try {
+                const data = JSON.parse(msg.body);
+                if (data.type === 'CALL_RESOLVED' || data.type === 'RESOLVED' || data.call?.status === 'RESOLVED') {
+                    setCalling(false);
+                }
+            } catch {}
         }));
         return () => { unsubConnect(); if (client.connected) client.unsubscribe('/user/queue/service-calls'); };
     }, []);
@@ -126,11 +128,37 @@ function GuestFlow() {
     const [lastComboPromoId, setLastComboPromoId] = useState<string | null>(null);
 
     const fetchOrders = () => api.get('/orders/my').then(res => setOrders(res.data));
+
+    const upsertOrRemoveOrder = (updatedOrder: any) => {
+        if (!updatedOrder || !updatedOrder.id) return;
+        setOrders(prev => {
+            if (updatedOrder.status === 'PAID') {
+                return prev.filter(o => o.id !== updatedOrder.id);
+            }
+            const exists = prev.some(o => o.id === updatedOrder.id);
+            if (exists) {
+                return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+            }
+            return [...prev, updatedOrder];
+        });
+    };
+
     useEffect(() => {
         fetchOrders();
         const client = getStompClient();
         if (!client) return;
-        const unsubConnect = onWsConnect(() => client.subscribe('/user/queue/order-updates', () => fetchOrders()));
+        const unsubConnect = onWsConnect(() => client.subscribe('/user/queue/order-updates', (msg) => {
+            if (msg?.body) {
+                try {
+                    const data = JSON.parse(msg.body);
+                    if (data?.order) {
+                        upsertOrRemoveOrder(data.order);
+                        return;
+                    }
+                } catch {}
+            }
+            fetchOrders();
+        }));
         return () => { unsubConnect(); if (client.connected) client.unsubscribe('/user/queue/order-updates'); };
     }, []);
 
@@ -145,14 +173,16 @@ function GuestFlow() {
         
         try {
             const res = await api.post('/orders', { items: payloadItems });
+            let finalOrder = res.data;
             if (lastComboPromoId) {
                 try {
-                    await api.post(`/orders/${res.data.id}/apply-promotion`, { promotionId: lastComboPromoId });
+                    const promoRes = await api.post(`/orders/${res.data.id}/apply-promotion`, { promotionId: lastComboPromoId });
+                    if (promoRes.data) finalOrder = promoRes.data;
                 } catch(e) {}
                 setLastComboPromoId(null);
             }
             setCart([]);
-            fetchOrders();
+            upsertOrRemoveOrder(finalOrder);
         } catch(e:any) { alert(e.response?.data?.message || 'Помилка замовлення'); }
     };
 
@@ -165,7 +195,12 @@ function GuestFlow() {
                 onSelectMenuItem={(id) => setTargetPromoMenuItemId(id)} 
                 onSelectCategory={(cat) => setTargetCategory(cat)}
             />
-            {orders.length > 0 && <ActiveOrders orders={orders} onOrderUpdated={fetchOrders} />}
+            {orders.length > 0 && (
+                <ActiveOrders
+                    orders={orders}
+                    onOrderUpdated={(updatedOrder?: any) => updatedOrder ? upsertOrRemoveOrder(updatedOrder) : fetchOrders()}
+                />
+            )}
             <Menu 
                 cart={cart} 
                 setCart={setCart} 
@@ -193,7 +228,7 @@ function GuestFlow() {
     );
 }
 
-function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdated?: () => void }) {
+function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdated?: (updatedOrder?: any) => void }) {
     const [checkingOut, setCheckingOut] = useState<string | null>(null);
     const [promosModalOrderId, setPromosModalOrderId] = useState<string | null>(null);
     const [activePromotions, setActivePromotions] = useState<any[]>([]);
@@ -241,9 +276,9 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
     const handleApplyPromotion = async (orderId: string, promotionId: string) => {
         setApplyingPromo(true);
         try {
-            await api.post(`/orders/${orderId}/apply-promotion`, { promotionId });
+            const res = await api.post(`/orders/${orderId}/apply-promotion`, { promotionId });
             setPromosModalOrderId(null);
-            if (onOrderUpdated) onOrderUpdated();
+            if (onOrderUpdated) onOrderUpdated(res.data);
         } catch (e: any) {
             alert(e.response?.data?.message || 'Помилка застосування акції');
         } finally {

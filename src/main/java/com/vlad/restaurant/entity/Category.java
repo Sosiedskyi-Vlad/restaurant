@@ -1,11 +1,15 @@
 package com.vlad.restaurant.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "categories")
-@Data
+@BatchSize(size = 50)
+@Getter
+@Setter
 public class Category {
 
     @Id

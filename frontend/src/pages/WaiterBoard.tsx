@@ -25,7 +25,38 @@ export default function WaiterBoard() {
     const [availablePromos, setAvailablePromos] = useState<any[]>([]);
     const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
     
-    const loadData = async () => {
+    const fetchActiveCalls = () => api.get('/service-calls/active').then(res => setCalls(res.data)).catch(() => {});
+    const fetchActiveOrders = () => api.get('/orders/active').then(res => setOrders(res.data)).catch(() => {});
+
+    const upsertOrRemoveOrder = (updatedOrder: any) => {
+        if (!updatedOrder || !updatedOrder.id) return;
+        setOrders(prev => {
+            if (updatedOrder.status === 'PAID') {
+                return prev.filter(o => o.id !== updatedOrder.id);
+            }
+            const exists = prev.some(o => o.id === updatedOrder.id);
+            if (exists) {
+                return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+            }
+            return [...prev, updatedOrder];
+        });
+    };
+
+    const upsertOrRemoveCall = (type: string | undefined, callObj: any) => {
+        if (!callObj || !callObj.id) return;
+        setCalls(prev => {
+            if (type === 'CALL_RESOLVED' || type === 'RESOLVED' || callObj.status === 'RESOLVED') {
+                return prev.filter(c => c.id !== callObj.id);
+            }
+            const exists = prev.some(c => c.id === callObj.id);
+            if (exists) {
+                return prev.map(c => c.id === callObj.id ? callObj : c);
+            }
+            return [callObj, ...prev];
+        });
+    };
+
+    const loadInitialData = async () => {
         try {
             const [tRes, cRes, oRes, elRes] = await Promise.all([
                 api.get('/tables'),
@@ -43,15 +74,37 @@ export default function WaiterBoard() {
     };
     
     useEffect(() => {
-        loadData();
+        loadInitialData();
         api.get('/promotions/active')
             .then(res => setAvailablePromos(res.data.filter((p: any) => p.discountPercent > 0)))
             .catch(() => {});
         const client = getStompClient();
         if (!client) return;
         const unsubConnect = onWsConnect(() => {
-            client.subscribe('/topic/service-calls', () => loadData());
-            client.subscribe('/topic/kitchen', () => loadData());
+            client.subscribe('/topic/service-calls', (msg) => {
+                if (msg?.body) {
+                    try {
+                        const data = JSON.parse(msg.body);
+                        if (data?.call) {
+                            upsertOrRemoveCall(data.type, data.call);
+                            return;
+                        }
+                    } catch {}
+                }
+                fetchActiveCalls();
+            });
+            client.subscribe('/topic/kitchen', (msg) => {
+                if (msg?.body) {
+                    try {
+                        const data = JSON.parse(msg.body);
+                        if (data?.order) {
+                            upsertOrRemoveOrder(data.order);
+                            return;
+                        }
+                    } catch {}
+                }
+                fetchActiveOrders();
+            });
         });
         return () => { 
             unsubConnect(); 
@@ -63,15 +116,15 @@ export default function WaiterBoard() {
     }, []);
 
     const resolveCall = async (id: string) => {
-        await api.patch(`/service-calls/${id}/resolve`);
-        loadData();
+        const res = await api.patch(`/service-calls/${id}/resolve`);
+        upsertOrRemoveCall('CALL_RESOLVED', res.data || { id, status: 'RESOLVED' });
         window.dispatchEvent(new Event('refresh-badges'));
     };
 
     const updateOrderStatus = async (id: string, target: string) => {
         try {
-            await api.patch(`/orders/${id}/status`, { status: target });
-            loadData();
+            const res = await api.patch(`/orders/${id}/status`, { status: target });
+            upsertOrRemoveOrder(res.data);
             window.dispatchEvent(new Event('refresh-badges'));
         } catch (e: any) {
             alert(e.response?.data?.message || 'Помилка оновлення статусу');
@@ -80,8 +133,8 @@ export default function WaiterBoard() {
 
     const handleApplyPromotion = async (orderId: string, promotionId: string | null) => {
         try {
-            await api.post(`/orders/${orderId}/apply-promotion`, { promotionId });
-            loadData();
+            const res = await api.post(`/orders/${orderId}/apply-promotion`, { promotionId });
+            upsertOrRemoveOrder(res.data);
         } catch (e: any) {
             alert(e.response?.data?.message || 'Помилка зміни знижки');
         }
@@ -89,8 +142,8 @@ export default function WaiterBoard() {
 
     const updateItemStatus = async (orderId: string, itemId: string, target: string) => {
         try {
-            await api.patch(`/orders/${orderId}/items/${itemId}/status`, { status: target });
-            loadData();
+            const res = await api.patch(`/orders/${orderId}/items/${itemId}/status`, { status: target });
+            upsertOrRemoveOrder(res.data);
             window.dispatchEvent(new Event('refresh-badges'));
         } catch (e: any) {
             alert(e.response?.data?.message || 'Помилка оновлення статусу страви');

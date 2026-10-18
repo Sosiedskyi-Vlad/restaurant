@@ -3,6 +3,7 @@ package com.vlad.restaurant.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -61,6 +62,7 @@ public class Order {
     @Column(name = "applied_promotion_title")
     private String appliedPromotionTitle;
 
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 }

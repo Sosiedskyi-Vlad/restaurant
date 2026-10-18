@@ -21,13 +21,13 @@ public class OrderItem {
     @JoinColumn(name = "order_id")
     private Order order;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "menu_item_id")
     private MenuItem menuItem;
 
     private Integer quantity;
 
-    // Фіксуємо ціну, щоб старі чеки не змінювались, якщо завтра ціна в меню зросте
+    // Фіксуємо ціну, щоб старі чеки не змінювалися, якщо завтра ціна в меню зросте
     @Column(name = "price_at_time", precision = 10, scale = 2)
     private BigDecimal priceAtTime;
 

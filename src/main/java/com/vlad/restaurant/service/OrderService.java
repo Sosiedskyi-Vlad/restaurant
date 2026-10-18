@@ -1,28 +1,28 @@
 package com.vlad.restaurant.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vlad.restaurant.dto.KdsMetricsResponse;
 import com.vlad.restaurant.dto.OrderCreateRequest;
 import com.vlad.restaurant.dto.OrderEventMessage;
 import com.vlad.restaurant.dto.OrderResponse;
-import com.vlad.restaurant.dto.KdsMetricsResponse;
-import com.vlad.restaurant.repository.AnalyticsRepository;
 import com.vlad.restaurant.entity.MenuItem;
 import com.vlad.restaurant.entity.Order;
 import com.vlad.restaurant.entity.OrderItem;
-import com.vlad.restaurant.entity.OrderStatus;
 import com.vlad.restaurant.entity.OrderItemStatus;
+import com.vlad.restaurant.entity.OrderStatus;
+import com.vlad.restaurant.entity.Promotion;
 import com.vlad.restaurant.entity.RestaurantTable;
+import com.vlad.restaurant.event.OrderEvent;
 import com.vlad.restaurant.exception.BadRequestException;
 import com.vlad.restaurant.exception.ConflictException;
-import com.vlad.restaurant.event.OrderEvent;
 import com.vlad.restaurant.exception.ResourceNotFoundException;
+import com.vlad.restaurant.repository.AnalyticsRepository;
 import com.vlad.restaurant.repository.MenuItemRepository;
 import com.vlad.restaurant.repository.OrderRepository;
-import com.vlad.restaurant.repository.RestaurantTableRepository;
-import com.vlad.restaurant.entity.Promotion;
 import com.vlad.restaurant.repository.PromotionRepository;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
+import com.vlad.restaurant.repository.RestaurantTableRepository;
 import com.vlad.restaurant.security.GuestPrincipal;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
@@ -37,10 +37,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -83,7 +83,6 @@ public class OrderService {
     private final PromotionRepository promotionRepository;
     private final ObjectMapper objectMapper;
 
-
     // @Transactional гарантує ACID: якщо хоча б одна страва не пройде перевірку,
     // нічого не запишеться в базу.
     @Transactional
@@ -109,47 +108,15 @@ public class OrderService {
             orderItem.setOrder(order);
             orderItem.setMenuItem(menuItem);
             orderItem.setQuantity(itemRequest.quantity());
-            // Фіксуємо ціну з урахуванням опцій
-            java.math.BigDecimal finalPrice = menuItem.getPrice();
+
+            BigDecimal finalPrice = menuItem.getPrice();
             String selectedOptionsStr = null;
             if (itemRequest.options() != null && !itemRequest.options().isEmpty()) {
+                finalPrice = resolvePriceWithOptions(menuItem, itemRequest.options());
                 try {
                     selectedOptionsStr = objectMapper.writeValueAsString(itemRequest.options());
-                    if (menuItem.getVariations() != null && !menuItem.getVariations().isBlank()) {
-                        java.util.List<Map<String, Object>> variations = objectMapper.readValue(menuItem.getVariations(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
-                        java.util.List<Map<String, Object>> selectedOpts = new java.util.ArrayList<>();
-                        
-                        for (Map.Entry<String, java.util.List<String>> entry : itemRequest.options().entrySet()) {
-                            for (Map<String, Object> varGroup : variations) {
-                                if (entry.getKey().equals(varGroup.get("name"))) {
-                                    java.util.List<Map<String, Object>> options = (java.util.List<Map<String, Object>>) varGroup.get("options");
-                                    for (Map<String, Object> opt : options) {
-                                        if (entry.getValue().contains(opt.get("name"))) {
-                                            selectedOpts.add(opt);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // First apply absolute prices
-                        for (Map<String, Object> opt : selectedOpts) {
-                            Boolean isAbsolute = (Boolean) opt.get("isAbsolute");
-                            if (Boolean.TRUE.equals(isAbsolute)) {
-                                finalPrice = new java.math.BigDecimal(opt.get("price").toString());
-                            }
-                        }
-                        
-                        // Then apply additive prices
-                        for (Map<String, Object> opt : selectedOpts) {
-                            Boolean isAbsolute = (Boolean) opt.get("isAbsolute");
-                            if (!Boolean.TRUE.equals(isAbsolute)) {
-                                finalPrice = finalPrice.add(new java.math.BigDecimal(opt.get("price").toString()));
-                            }
-                        }
-                    }
                 } catch (Exception e) {
-                    log.error("Помилка парсингу опцій", e);
+                    throw new BadRequestException("Некоректний формат модифікаторів страви \"" + menuItem.getName() + "\"");
                 }
             }
             orderItem.setPriceAtTime(finalPrice);
@@ -162,6 +129,55 @@ public class OrderService {
         eventPublisher.publishEvent(new OrderEvent(tableId,
                 new OrderEventMessage(OrderEventMessage.Type.ORDER_CREATED, null, response)));
         return response;
+    }
+
+    private BigDecimal resolvePriceWithOptions(MenuItem menuItem, Map<String, List<String>> requestedOptions) {
+        BigDecimal finalPrice = menuItem.getPrice();
+        if (menuItem.getVariations() == null || menuItem.getVariations().isBlank()) {
+            return finalPrice;
+        }
+        try {
+            List<Map<String, Object>> variations = objectMapper.readValue(
+                    menuItem.getVariations(), new TypeReference<>() {});
+            List<Map<String, Object>> selectedOpts = new ArrayList<>();
+
+            for (Map.Entry<String, List<String>> entry : requestedOptions.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isEmpty()) continue;
+                for (Map<String, Object> varGroup : variations) {
+                    if (entry.getKey().equals(varGroup.get("name"))) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> options = (List<Map<String, Object>>) varGroup.get("options");
+                        if (options != null) {
+                            for (Map<String, Object> opt : options) {
+                                if (entry.getValue().contains(String.valueOf(opt.get("name")))) {
+                                    selectedOpts.add(opt);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Спочатку застосовуємо базові (абсолютні) ціни варіацій
+            for (Map<String, Object> opt : selectedOpts) {
+                Boolean isAbsolute = (Boolean) opt.get("isAbsolute");
+                if (Boolean.TRUE.equals(isAbsolute) && opt.get("price") != null) {
+                    finalPrice = new BigDecimal(opt.get("price").toString());
+                }
+            }
+
+            // Потім додаємо надбавки за додаткові опції/топінги
+            for (Map<String, Object> opt : selectedOpts) {
+                Boolean isAbsolute = (Boolean) opt.get("isAbsolute");
+                if (!Boolean.TRUE.equals(isAbsolute) && opt.get("price") != null) {
+                    finalPrice = finalPrice.add(new BigDecimal(opt.get("price").toString()));
+                }
+            }
+            return finalPrice.setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            log.error("Помилка розрахунку вартості опцій для страви {}", menuItem.getName(), e);
+            throw new BadRequestException("Некоректні параметри модифікаторів для страви \"" + menuItem.getName() + "\"");
+        }
     }
 
     // Гість: усі неоплачені замовлення свого столу (їх може бути кілька)
@@ -366,8 +382,21 @@ public class OrderService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Позицію замовлення не знайдено"));
 
+        OrderStatus previousStatus = order.getStatus();
         item.setStatus(target);
 
+        // Автоматична синхронізація інтегрального статусу чека
+        syncOrderStatus(order, target);
+
+        Order saved = orderRepository.save(order);
+        OrderResponse response = OrderResponse.from(saved);
+        UUID tId = order.getTable() != null ? order.getTable().getId() : null;
+        eventPublisher.publishEvent(new OrderEvent(tId,
+                new OrderEventMessage(OrderEventMessage.Type.ORDER_STATUS_CHANGED, previousStatus, response)));
+        return response;
+    }
+
+    private void syncOrderStatus(Order order, OrderItemStatus target) {
         // Якщо замовлення було в NEW і почали готувати або віддали страву:
         if (order.getStatus() == OrderStatus.NEW && (target == OrderItemStatus.PREPARING || target == OrderItemStatus.READY)) {
             order.setStatus(OrderStatus.PREPARING);
@@ -384,13 +413,6 @@ public class OrderService {
             // Якщо випадково зняли статус готовності зі страви
             order.setStatus(OrderStatus.PREPARING);
         }
-
-        Order saved = orderRepository.save(order);
-        OrderResponse response = OrderResponse.from(saved);
-        UUID tId = order.getTable() != null ? order.getTable().getId() : null;
-        eventPublisher.publishEvent(new OrderEvent(tId,
-                new OrderEventMessage(OrderEventMessage.Type.ORDER_STATUS_CHANGED, order.getStatus(), response)));
-        return response;
     }
 
     // Викликається після підтвердженої онлайн-оплати (див. PaymentService).

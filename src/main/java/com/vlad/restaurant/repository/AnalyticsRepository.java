@@ -17,11 +17,18 @@ import java.util.UUID;
 @Repository
 public interface AnalyticsRepository extends JpaRepository<Order, UUID> {
 
-    @Query("""
-            select coalesce(sum(i.priceAtTime * i.quantity), 0)
-            from Order o join o.items i
-            where o.paid = true and o.paidAt >= :from and o.paidAt < :to
-            """)
+    // Чистий виторг з урахуванням застосованих знижок (discount_amount) по кожному чеку
+    @Query(value = """
+            select coalesce(sum(
+                greatest(
+                    coalesce((select sum(i.price_at_time * i.quantity) from order_items i where i.order_id = o.id), 0)
+                    - coalesce(o.discount_amount, 0),
+                    0
+                )
+            ), 0)
+            from orders o
+            where o.paid = true and o.paid_at >= :from and o.paid_at < :to
+            """, nativeQuery = true)
     BigDecimal revenue(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     @Query("select count(o) from Order o where o.paid = true and o.paidAt >= :from and o.paidAt < :to")
@@ -55,12 +62,18 @@ public interface AnalyticsRepository extends JpaRepository<Order, UUID> {
             """, nativeQuery = true)
     Double avgCookingSeconds(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
-    // Рядки: [дата (java.sql.Date), выручка, кількість замовлень]
+    // Рядки: [дата (java.sql.Date), чиста виручка з урахуванням знижок, кількість замовлень]
     @Query(value = """
             select cast(o.paid_at as date) as day,
-                   sum(i.price_at_time * i.quantity) as revenue,
-                   count(distinct o.id) as orders
-            from orders o join order_items i on i.order_id = o.id
+                   coalesce(sum(
+                       greatest(
+                           coalesce((select sum(i.price_at_time * i.quantity) from order_items i where i.order_id = o.id), 0)
+                           - coalesce(o.discount_amount, 0),
+                           0
+                       )
+                   ), 0) as revenue,
+                   count(o.id) as orders
+            from orders o
             where o.paid = true and o.paid_at >= :from and o.paid_at < :to
             group by cast(o.paid_at as date)
             order by day

@@ -1,15 +1,24 @@
 import { Client } from '@stomp/stompjs';
 
 let client: Client | null = null;
+let currentToken: string | null = null;
 let connectCallbacks: Array<() => void> = [];
 
 export const getStompClient = () => {
-    if (client && client.active) return client;
-    
     const isStaff = window.location.pathname.startsWith('/staff');
     const token = localStorage.getItem(isStaff ? 'staff_token' : 'guest_token');
     if (!token) return null;
 
+    if (client && client.active && currentToken === token) {
+        return client;
+    }
+
+    if (client) {
+        client.deactivate();
+        client = null;
+    }
+
+    currentToken = token;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     client = new Client({
         brokerURL: `${protocol}//${window.location.host}/ws/orders`,
@@ -43,6 +52,7 @@ export const disconnectWs = () => {
     if (client) {
         client.deactivate();
         client = null;
+        currentToken = null;
         connectCallbacks = [];
     }
 };

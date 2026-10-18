@@ -5,18 +5,13 @@ import com.vlad.restaurant.dto.PromotionResponse;
 import com.vlad.restaurant.entity.MenuItem;
 import com.vlad.restaurant.entity.Promotion;
 import com.vlad.restaurant.exception.ResourceNotFoundException;
-import com.vlad.restaurant.exception.BadRequestException;
-import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import com.vlad.restaurant.repository.MenuItemRepository;
 import com.vlad.restaurant.repository.PromotionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +25,7 @@ public class PromotionService {
 
     private final PromotionRepository promotionRepository;
     private final MenuItemRepository menuItemRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public List<PromotionResponse> getActivePromotions() {
@@ -94,45 +90,25 @@ public class PromotionService {
     public void deletePromotion(UUID id) {
         Promotion p = promotionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Акцію не знайдено"));
+        String oldImageUrl = p.getImageUrl();
         promotionRepository.delete(p);
+        fileStorageService.deleteLocalImageIfPresent(oldImageUrl);
         log.info("Видалено акцію: {}", p.getTitle());
     }
 
     public String uploadImageOnly(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("Файл не обрано");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/jpg") && !contentType.equals("image/webp"))) {
-            throw new BadRequestException("Дозволені лише формати JPG, PNG та WEBP");
-        }
-
-        try {
-            Path uploadDir = Paths.get("uploads");
-            if (!Files.exists(uploadDir)) {
-                Files.createDirectories(uploadDir);
-            }
-
-            String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
-            String safeName = originalName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
-            String filename = "promo_" + UUID.randomUUID() + "_" + safeName;
-            Path filePath = uploadDir.resolve(filename).toAbsolutePath();
-            file.transferTo(filePath.toFile());
-
-            return "/uploads/" + filename;
-        } catch (IOException e) {
-            log.error("Помилка збереження зображення акції", e);
-            throw new RuntimeException("Не вдалося зберегти файл", e);
-        }
+        return fileStorageService.storeImage(file, "promo");
     }
 
     @Transactional
     public PromotionResponse uploadImageForPromotion(UUID id, MultipartFile file) {
         Promotion p = promotionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Акцію не знайдено"));
-        String url = uploadImageOnly(file);
+        String oldImageUrl = p.getImageUrl();
+        String url = fileStorageService.storeImage(file, "promo");
         p.setImageUrl(url);
         Promotion saved = promotionRepository.save(p);
+        fileStorageService.deleteLocalImageIfPresent(oldImageUrl);
         log.info("Оновлено зображення для акції {}: {}", saved.getTitle(), url);
         return PromotionResponse.from(saved, getItemName(saved.getTargetMenuItemId()));
     }

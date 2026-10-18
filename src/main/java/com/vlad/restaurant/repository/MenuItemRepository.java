@@ -3,6 +3,9 @@ package com.vlad.restaurant.repository;
 import com.vlad.restaurant.entity.MenuItem;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -23,4 +26,12 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
 
     @EntityGraph(attributePaths = "category")
     Optional<MenuItem> findByIdAndActiveTrue(Long id);
+
+    @Modifying
+    @Query("update MenuItem m set m.favoritesCount = coalesce(m.favoritesCount, 0) + 1 where m.id = :id and m.active = true")
+    int incrementFavoritesCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("update MenuItem m set m.favoritesCount = case when coalesce(m.favoritesCount, 0) > 0 then m.favoritesCount - 1 else 0 end where m.id = :id and m.active = true")
+    int decrementFavoritesCount(@Param("id") Long id);
 }

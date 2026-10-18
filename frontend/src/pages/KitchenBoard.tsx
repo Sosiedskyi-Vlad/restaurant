@@ -101,6 +101,20 @@ export default function KitchenBoard({ role }: { role: string }) {
     const fetchActive = () => api.get('/orders/active').then(res => setOrders(res.data));
     const fetchMetrics = () => api.get('/orders/kds-metrics').then(res => setMetrics(res.data)).catch(() => {});
 
+    const upsertOrRemoveOrder = (updatedOrder: any) => {
+        if (!updatedOrder || !updatedOrder.id) return;
+        setOrders(prev => {
+            if (updatedOrder.status === 'PAID') {
+                return prev.filter(o => o.id !== updatedOrder.id);
+            }
+            const exists = prev.some(o => o.id === updatedOrder.id);
+            if (exists) {
+                return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+            }
+            return [...prev, updatedOrder];
+        });
+    };
+
     const fetchRecentClosed = async () => {
         try {
             const res = await api.get('/orders/recent-closed');
@@ -113,8 +127,8 @@ export default function KitchenBoard({ role }: { role: string }) {
     const recallOrder = async (orderId: string) => {
         setRecallingId(orderId);
         try {
-            await api.post(`/orders/${orderId}/recall`);
-            fetchActive();
+            const res = await api.post(`/orders/${orderId}/recall`);
+            upsertOrRemoveOrder(res.data);
             fetchMetrics();
             fetchRecentClosed();
             window.dispatchEvent(new Event('refresh-badges'));
@@ -130,8 +144,21 @@ export default function KitchenBoard({ role }: { role: string }) {
         fetchMetrics();
         const client = getStompClient();
         if (!client) return;
-        const unsubConnect = onWsConnect(() => client.subscribe('/topic/kitchen', () => {
-            fetchActive();
+        const unsubConnect = onWsConnect(() => client.subscribe('/topic/kitchen', (msg) => {
+            if (msg?.body) {
+                try {
+                    const data = JSON.parse(msg.body);
+                    if (data?.order) {
+                        upsertOrRemoveOrder(data.order);
+                    } else {
+                        fetchActive();
+                    }
+                } catch {
+                    fetchActive();
+                }
+            } else {
+                fetchActive();
+            }
             fetchMetrics();
             if (showRecentClosed) fetchRecentClosed();
         }));
@@ -148,8 +175,8 @@ export default function KitchenBoard({ role }: { role: string }) {
 
     const updateStatus = async (id: string, target: string) => {
         try {
-            await api.patch(`/orders/${id}/status`, { status: target });
-            fetchActive();
+            const res = await api.patch(`/orders/${id}/status`, { status: target });
+            upsertOrRemoveOrder(res.data);
             fetchMetrics();
             window.dispatchEvent(new Event('refresh-badges'));
         } catch (e: any) { 
@@ -171,8 +198,8 @@ export default function KitchenBoard({ role }: { role: string }) {
                 };
             }));
 
-            await api.patch(`/orders/${orderId}/items/${item.id}/status`, { status: target });
-            fetchActive();
+            const res = await api.patch(`/orders/${orderId}/items/${item.id}/status`, { status: target });
+            upsertOrRemoveOrder(res.data);
             fetchMetrics();
             window.dispatchEvent(new Event('refresh-badges'));
         } catch (e: any) {

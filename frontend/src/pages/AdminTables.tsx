@@ -527,8 +527,9 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
             }));
             await api.patch('/tables/positions', tablesPayload);
 
-            // 2. Оновлення елементів поточної зони
+            // 2. Оновлення елементів поточної зони (зберігаючи наявні UUID для уникнення видалення/перестворення)
             const elementsPayload = elements.map(el => ({
+                id: el.id && !el.id.startsWith('temp-') ? el.id : null,
                 name: el.name,
                 type: el.type,
                 zone: currentZone,
@@ -538,11 +539,15 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 height: el.height,
                 rotation: el.rotation
             }));
-            await api.put(`/hall-elements/zone/${currentZone}`, elementsPayload);
+            const res = await api.put(`/hall-elements/zone/${currentZone}`, elementsPayload);
+            if (res.data) {
+                setElements(res.data);
+            } else {
+                loadElements(currentZone);
+            }
 
             alert('Схему залу успішно збережено!');
             reloadTables();
-            loadElements(currentZone);
         } catch (e: any) {
             alert('Помилка збереження: ' + (e.response?.data?.message || e.message));
         } finally {
