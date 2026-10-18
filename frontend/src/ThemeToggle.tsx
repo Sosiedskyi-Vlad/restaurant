@@ -9,10 +9,13 @@ export function useTheme() {
     });
 
     useEffect(() => {
+        const metaTheme = document.querySelector('meta[name="theme-color"]');
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
+            if (metaTheme) metaTheme.setAttribute('content', '#020617');
         } else {
             document.documentElement.classList.remove('dark');
+            if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
         }
         localStorage.setItem('theme', theme);
     }, [theme]);

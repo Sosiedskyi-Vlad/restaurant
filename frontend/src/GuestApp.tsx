@@ -177,7 +177,7 @@ function GuestFlow() {
             />
             
             {count > 0 && (
-                <div className="fixed bottom-6 left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
+                <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
                     <button onClick={sendOrder} className="w-full glass-dark dark:bg-indigo-600/90 dark:border-indigo-400/30 text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform shadow-2xl cursor-pointer">
                         <div className="flex justify-between items-center w-full">
                             <div className="flex items-center gap-3">
@@ -202,6 +202,14 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
     useEffect(() => {
         api.get('/promotions/active').then(res => setActivePromotions(res.data)).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (promosModalOrderId) {
+            const orig = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => { document.body.style.overflow = orig; };
+        }
+    }, [promosModalOrderId]);
 
     const pay = async (orderId: string) => {
         try {
@@ -485,6 +493,17 @@ function Menu({
     }, []);
 
     // При кліку на категорію з каруселі
+    // Блокування скролу фонової сторінки під час відкритих модальних вікон
+    useEffect(() => {
+        if (selectedItem || activeComboModal) {
+            const origOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = origOverflow;
+            };
+        }
+    }, [selectedItem, activeComboModal]);
+
     useEffect(() => {
         if (!targetCategory) return;
         setActiveCategory(targetCategory);
@@ -748,8 +767,8 @@ function Menu({
         try {
             const vars = JSON.parse(variationsStr);
             return vars.map((group: any, idx: number) => (
-                <div key={idx} className="mb-5">
-                    <h3 className="font-bold text-slate-900 dark:text-white mb-2">{group.name}</h3>
+                <div key={idx} className="mb-3.5">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-1.5 text-sm">{group.name}</h3>
                     <div className="flex flex-wrap gap-2">
                         {group.options.map((opt: any, optIdx: number) => {
                             const isSelected = (modalOptions[group.name] || []).includes(opt.name);
@@ -768,7 +787,7 @@ function Menu({
                                 <button 
                                     key={optIdx}
                                     onClick={toggleOption}
-                                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                                    className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                                         isSelected 
                                             ? 'bg-indigo-600 text-white shadow-md' 
                                             : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -808,52 +827,62 @@ function Menu({
 
             {/* Модалка зі стравою */}
             {selectedItem && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 sm:p-0 animate-slideUpFade" onClick={() => setSelectedItem(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-[2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
-                        {selectedItem.imageUrl && <div className="shrink-0"><img src={selectedItem.imageUrl} className="w-full aspect-[4/3] object-cover" /></div>}
-                        <button onClick={() => setSelectedItem(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/70 transition-colors cursor-pointer">✕</button>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setSelectedItem(null)}>
+                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-t-[2rem] rounded-b-none sm:rounded-[2.2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[88dvh] sm:max-h-[88vh] border-t sm:border border-slate-100 dark:border-slate-800 overscroll-contain" onClick={e => e.stopPropagation()}>
+                        {selectedItem.imageUrl && (
+                            <div className="shrink-0 h-40 sm:h-48 w-full bg-slate-950 relative">
+                                <img src={selectedItem.imageUrl} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                            </div>
+                        )}
+                        <button onClick={() => setSelectedItem(null)} className="absolute top-3.5 right-3.5 w-9 h-9 bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/80 transition-colors cursor-pointer text-sm shadow-md">✕</button>
                         
-                        <div className="p-6 overflow-y-auto">
-                            <div className="flex justify-between items-start mb-2">
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight pr-4">{selectedItem.name}</h2>
+                        {/* Зона скролу контенту */}
+                        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4 overscroll-contain">
+                            <div className="flex justify-between items-start">
+                                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight pr-4">{selectedItem.name}</h2>
                             </div>
                             
-                            <div className="flex items-center gap-2 mb-6 text-sm font-medium text-pink-500 bg-pink-50 dark:bg-pink-950/40 w-fit px-3 py-1 rounded-full">
-                                <HeartIcon className="w-4 h-4" /> 
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-500 bg-pink-50 dark:bg-pink-950/40 w-fit px-3 py-1 rounded-full">
+                                <HeartIcon className="w-3.5 h-3.5" /> 
                                 {(selectedItem.favoritesCount || 0)} людям подобається
                             </div>
 
                             {selectedItem.variations && (
-                                <div className="mb-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80">
                                     {renderVariations(selectedItem.variations)}
                                 </div>
                             )}
 
                             {selectedItem.ingredients && (
-                                <div className="mb-4">
-                                    <h3 className="font-bold text-slate-900 dark:text-white mb-1">Склад:</h3>
-                                    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">{selectedItem.ingredients}</p>
+                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                                    <h3 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Склад:</h3>
+                                    <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed">{selectedItem.ingredients}</p>
                                 </div>
                             )}
 
                             {selectedItem.allergens && (
-                                <div className="mb-6 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/40">
-                                    <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-1 text-sm">Алергени:</h3>
-                                    <p className="text-amber-700 dark:text-amber-400 text-sm">{selectedItem.allergens}</p>
+                                <div className="bg-amber-50 dark:bg-amber-950/40 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/40">
+                                    <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-1 text-xs">Алергени:</h3>
+                                    <p className="text-amber-700 dark:text-amber-400 text-xs">{selectedItem.allergens}</p>
                                 </div>
                             )}
 
                             {!selectedItem.ingredients && !selectedItem.allergens && !selectedItem.variations && (
-                                <p className="text-slate-500 dark:text-slate-400 mb-6 italic">Детальна інформація відсутня</p>
+                                <p className="text-slate-500 dark:text-slate-400 italic text-sm">Детальна інформація відсутня</p>
                             )}
+                        </div>
 
-                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
-                                <button onClick={addToCart} className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors flex justify-center gap-2 items-center shadow-md cursor-pointer">
-                                    <span>Додати</span>
-                                    <span className="opacity-50">•</span>
-                                    <span>{modalPrice} ₴</span>
-                                </button>
-                            </div>
+                        {/* Фіксована панель кнопки додавання (текст ніколи не вилазить під кнопку) */}
+                        <div className="p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 shadow-lg">
+                            <button 
+                                onClick={addToCart} 
+                                className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-3.5 px-4 rounded-2xl font-bold hover:bg-slate-800 dark:hover:bg-indigo-500 active:scale-[0.98] transition-all flex justify-center gap-2 items-center shadow-md cursor-pointer text-base"
+                            >
+                                <span>Додати</span>
+                                <span className="opacity-50">•</span>
+                                <span>{modalPrice} ₴</span>
+                            </button>
                         </div>
                     </div>
                 </div>,
@@ -862,8 +891,8 @@ function Menu({
 
             {/* Конфігуратор комбо (Модальне вікно) */}
             {activeComboModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 sm:p-0 animate-slideUpFade" onClick={() => setActiveComboModal(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setActiveComboModal(null)}>
+                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-t-[2rem] rounded-b-none sm:rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90dvh] sm:max-h-[90vh] border-t sm:border border-slate-100 dark:border-slate-800 overscroll-contain" onClick={e => e.stopPropagation()}>
                         {activeComboModal.imageUrl && (
                             <div className="relative aspect-[16/9] w-full shrink-0 bg-slate-900">
                                 <img src={activeComboModal.imageUrl} alt={activeComboModal.title} className="w-full h-full object-cover" />
@@ -877,7 +906,7 @@ function Menu({
                             </div>
                         )}
 
-                        <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                        <div className="p-6 overflow-y-auto space-y-5 flex-1 overscroll-contain">
                             {!activeComboModal.imageUrl && (
                                 <div className="flex justify-between items-start">
                                     <div>
@@ -1008,7 +1037,7 @@ function Menu({
                         </div>
 
                         {/* Кнопка додавання зібраного комбо в кошик */}
-                        <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                        <div className="p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
                             <button
                                 onClick={addComboToCart}
                                 className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"

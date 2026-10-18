@@ -14,21 +14,29 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.Inet4Address;
+import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Enumeration;
 import java.util.Map;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class TableService {
 
@@ -36,9 +44,57 @@ public class TableService {
 
     private final RestaurantTableRepository repository;
 
-    // Адреса гостьового фронтенду: саме її відкриє телефон після сканування QR
-    @Value("${app.qr.base-url:http://localhost:5173}")
-    private String qrBaseUrl;
+    // Адреса гостьового фронтенду. Якщо "auto", "localhost" або не вказано - визначається автоматично за локальним IP.
+    @Value("${app.qr.base-url:auto}")
+    private String configuredQrBaseUrl;
+
+    @PostConstruct
+    public void logBaseUrl() {
+        log.info("Ефективна базова адреса для QR-кодів: {}", getEffectiveQrBaseUrl());
+    }
+
+    public String getEffectiveQrBaseUrl() {
+        if (configuredQrBaseUrl != null 
+                && !configuredQrBaseUrl.isBlank() 
+                && !configuredQrBaseUrl.equalsIgnoreCase("auto")
+                && !configuredQrBaseUrl.contains("localhost")
+                && !configuredQrBaseUrl.contains("127.0.0.1")) {
+            return configuredQrBaseUrl.replaceAll("/+$", "");
+        }
+        return "http://" + resolveLocalIp() + ":5173";
+    }
+
+    // Автоматично визначає локальну IP-адресу ноутбука в мережі Wi-Fi
+    public static String resolveLocalIp() {
+        try (DatagramSocket socket = new DatagramSocket()) {
+            socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
+            String ip = socket.getLocalAddress().getHostAddress();
+            if (ip != null && !ip.isBlank() && !ip.equals("0.0.0.0")) {
+                return ip;
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface iface = interfaces.nextElement();
+                if (iface.isLoopback() || !iface.isUp()) continue;
+                Enumeration<InetAddress> addresses = iface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
+                    if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (Exception ignored) {}
+
+        return "localhost";
+    }
 
     // Криптографічно стійкий випадковий токен (256 біт) для QR-коду
     public static String generateQrHash() {
@@ -83,7 +139,7 @@ public class TableService {
     public byte[] generateQrPng(UUID id, int size) {
         RestaurantTable table = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Стіл не знайдено"));
-        String url = qrBaseUrl.replaceAll("/+$", "") + "/?qr=" + table.getQrCodeHash();
+        String url = getEffectiveQrBaseUrl() + "/?qr=" + table.getQrCodeHash();
         try {
             BitMatrix matrix = new QRCodeWriter().encode(url, BarcodeFormat.QR_CODE, size, size, Map.of(
                     EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M, // витримує подряпини на наліпці
