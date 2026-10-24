@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { CalendarIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 export default function AdminAnalytics() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     
-    // Default: last 30 days
     const [fromDate, setFromDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() - 30);
@@ -62,16 +61,16 @@ export default function AdminAnalytics() {
     }, [fromDate, toDate, topLimit]);
 
     return (
-        <div className="p-8 max-w-6xl mx-auto">
+        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Аналітика та Звіти</h1>
-                    <button onClick={downloadCSV} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-colors">
-                        <ArrowDownTrayIcon className="w-4 h-4" /> Завантажити звіт
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Аналітика та звіти</h1>
+                    <button onClick={downloadCSV} className="flex items-center gap-2 bg-stone-900 hover:bg-stone-800 dark:bg-amber-600 dark:hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-colors">
+                        <ArrowDownTrayIcon className="w-4 h-4" /> Завантажити CSV
                     </button>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-xs border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center pl-3 text-slate-400">
                         <CalendarIcon className="w-5 h-5" />
                     </div>
@@ -93,11 +92,10 @@ export default function AdminAnalytics() {
 
             {loading && !data ? (
                 <div className="flex justify-center p-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600"></div>
                 </div>
             ) : data ? (
                 <>
-                    {/* Головні показники */}
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
                         <StatCard title="Виручка" value={`${data.revenue} ₴`} />
                         <StatCard title="Замовлень" value={data.paidOrders} />
@@ -106,30 +104,28 @@ export default function AdminAnalytics() {
                         <StatCard title="Офіціанти (реакція)" value={data.avgWaiterReactionMinutes ? `${data.avgWaiterReactionMinutes} хв` : '—'} />
                     </div>
 
-                    {/* Графіки */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        
-                        {/* Графік виручки */}
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <h3 className="text-lg font-bold mb-6 text-slate-900 dark:text-white">Динаміка виручки</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                            <h3 className="text-base font-bold mb-6 text-slate-900 dark:text-white">Динаміка виручки</h3>
                             <div className="h-72">
                                 {data.revenueByDay?.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={data.revenueByDay} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor="#d97706" stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor="#d97706" stopOpacity={0}/>
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#475569" opacity={0.2} />
                                             <XAxis dataKey="date" tick={{fontSize: 12, fill: '#64748b'}} tickLine={false} axisLine={false} minTickGap={30} />
                                             <YAxis tick={{fontSize: 12, fill: '#64748b'}} tickLine={false} axisLine={false} />
                                             <Tooltip 
-                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: 'var(--tw-prose-body)' }}
-                                                itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+                                                contentStyle={{ borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.25)', backgroundColor: '#0f172a', color: '#f8fafc' }}
+                                                labelStyle={{ color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}
+                                                itemStyle={{ color: '#fbbf24', fontWeight: 'bold' }}
                                             />
-                                            <Area type="monotone" name="Виручка (₴)" dataKey="revenue" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                                            <Area type="monotone" name="Виручка (₴)" dataKey="revenue" stroke="#d97706" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (
@@ -138,22 +134,22 @@ export default function AdminAnalytics() {
                             </div>
                         </div>
 
-                        {/* Графік замовлень */}
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <h3 className="text-lg font-bold mb-6 text-slate-900 dark:text-white">Кількість замовлень</h3>
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                            <h3 className="text-base font-bold mb-6 text-slate-900 dark:text-white">Кількість замовлень</h3>
                             <div className="h-72">
                                 {data.revenueByDay?.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={data.revenueByDay} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#475569" opacity={0.2} />
                                             <XAxis dataKey="date" tick={{fontSize: 12, fill: '#64748b'}} tickLine={false} axisLine={false} minTickGap={30} />
                                             <YAxis tick={{fontSize: 12, fill: '#64748b'}} tickLine={false} axisLine={false} allowDecimals={false} />
                                             <Tooltip 
                                                 cursor={{fill: '#334155', opacity: 0.1}}
-                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                                                contentStyle={{ borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.25)', backgroundColor: '#0f172a', color: '#f8fafc' }}
+                                                labelStyle={{ color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}
+                                                itemStyle={{ color: '#34d399', fontWeight: 'bold' }}
                                             />
-                                            <Bar dataKey="orders" name="Замовлення" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="orders" name="Замовлення" fill="#10b981" radius={[6, 6, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
@@ -161,17 +157,15 @@ export default function AdminAnalytics() {
                                 )}
                             </div>
                         </div>
-
                     </div>
 
-                    {/* Популярні страви */}
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm mb-8">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs mb-8">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Популярні страви</h2>
+                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Популярні страви</h2>
                             <select 
                                 value={topLimit} 
                                 onChange={(e) => setTopLimit(parseInt(e.target.value))}
-                                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm px-3 py-1.5 focus:ring-indigo-500 focus:border-indigo-500"
+                                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm px-3 py-1.5 focus:ring-amber-500 focus:border-amber-500"
                             >
                                 <option value={5}>Топ 5</option>
                                 <option value={10}>Топ 10</option>
@@ -183,22 +177,22 @@ export default function AdminAnalytics() {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
-                                    <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm">
-                                        <th className="pb-3 font-medium">Назва страви</th>
-                                        <th className="pb-3 font-medium">Продано порцій</th>
-                                        <th className="pb-3 font-medium text-right">Виручка</th>
+                                    <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
+                                        <th className="pb-3 font-semibold">Назва страви</th>
+                                        <th className="pb-3 font-semibold">Продано порцій</th>
+                                        <th className="pb-3 font-semibold text-right">Виручка</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {data.topItems?.map((i:any, index: number) => (
                                         <tr key={i.menuItemId} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                             <td className="py-3.5 flex items-center gap-3">
-                                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index < 3 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index < 3 ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
                                                     {index + 1}
                                                 </span>
-                                                <span className="font-medium text-slate-900 dark:text-slate-200">{i.name}</span>
+                                                <span className="font-semibold text-slate-900 dark:text-slate-200">{i.name}</span>
                                             </td>
-                                            <td className="py-3.5 text-slate-700 dark:text-slate-300">
+                                            <td className="py-3.5 text-slate-700 dark:text-slate-300 text-sm">
                                                 {i.quantity} шт
                                             </td>
                                             <td className="py-3.5 font-bold text-slate-900 dark:text-white text-right">
@@ -223,9 +217,9 @@ export default function AdminAnalytics() {
 
 function StatCard({ title, value }: { title: string, value: string | number, trend?: any }) {
     return (
-        <div className="bg-white dark:bg-slate-800 p-5 lg:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-t-2 border-t-indigo-500/70 hover:-translate-y-0.5 hover:shadow-md transition-all">
-            <div className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3">{title}</div>
-            <div className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{value}</div>
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs border-t-2 border-t-amber-500/80 transition-all">
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">{title}</div>
+            <div className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{value}</div>
         </div>
     );
 }

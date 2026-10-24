@@ -2,21 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply antialiased selection:bg-amber-500/20 selection:text-amber-900 dark:selection:text-amber-200;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
 @layer utilities {
   .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
-  .glass { @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-sm; }
-  .glass-dark { @apply bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl; }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  .glass { @apply bg-white/85 backdrop-blur-md border border-stone-200/70 shadow-sm; }
+  .glass-dark { @apply bg-stone-900/90 backdrop-blur-md border border-stone-800 shadow-xl; }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Compatibility utilities for Tailwind v3 */
+  .shadow-xs { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+  .shadow-2xs { box-shadow: 0 1px 1px 0 rgb(0 0 0 / 0.04); }
+  .backdrop-blur-xs { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .scale-101 { transform: scale(1.01); }
+  .scale-102 { transform: scale(1.02); }
+  .active\:scale-98:active { transform: scale(0.98); }
+  .-ml-4\.5 { margin-left: -1.125rem; }
+  .animate-slideUpFade { animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes wiggle {
-  0%, 100% { transform: rotate(-10deg); }
-  50% { transform: rotate(10deg); }
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
 }

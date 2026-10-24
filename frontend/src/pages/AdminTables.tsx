@@ -9,8 +9,20 @@ import {
     TrashIcon, 
     ArrowPathIcon,
     SparklesIcon,
-    XMarkIcon
+    XMarkIcon,
+    UsersIcon
 } from '@heroicons/react/24/outline';
+import {
+    Wine,
+    ChefHat,
+    DoorOpen,
+    Bath,
+    Trees,
+    BrickWall,
+    Scissors,
+    MousePointerClick,
+    Lightbulb
+} from 'lucide-react';
 
 export const ZONES = [
     { id: 'MAIN', name: 'Основний зал' },
@@ -28,6 +40,19 @@ export interface HallElementItem {
     width: number;
     height: number;
     rotation: number;
+}
+
+function getElementIcon(type: HallElementItem['type'], className = 'w-4 h-4 shrink-0') {
+    switch (type) {
+        case 'VOID': return <Scissors className={className} />;
+        case 'WALL': return <BrickWall className={className} />;
+        case 'BAR': return <Wine className={className} />;
+        case 'KITCHEN': return <ChefHat className={className} />;
+        case 'ENTRANCE': return <DoorOpen className={className} />;
+        case 'WC': return <Bath className={className} />;
+        case 'PLANT': return <Trees className={className} />;
+        default: return null;
+    }
 }
 
 export default function AdminTables() {
@@ -157,7 +182,7 @@ export default function AdminTables() {
 
                         <button 
                             onClick={addTable} 
-                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 ml-auto"
+                            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 ml-auto"
                         >
                             <PlusIcon className="w-5 h-5"/> Створити стіл
                         </button>
@@ -168,19 +193,19 @@ export default function AdminTables() {
                             const zoneObj = ZONES.find(z => z.id === t.zone) || ZONES[0];
                             return (
                                 <div key={t.id} className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-                                    <div className="absolute top-0 w-full h-1.5 bg-indigo-500"></div>
+                                    <div className="absolute top-0 w-full h-1.5 bg-amber-500"></div>
                                     
                                     <div className="w-full flex justify-between items-center mb-3 mt-1">
                                         <div>
                                             <h3 className="font-bold text-xl text-slate-900 dark:text-white">Стіл {t.number}</h3>
-                                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                                            <div className="text-xs font-semibold text-amber-600 dark:text-amber-400">
                                                 {zoneObj.name} • {t.seats || 4} місць
                                             </div>
                                         </div>
                                         <button 
                                             onClick={() => openGuestUrl(t.qrCodeHash)} 
                                             title="Відкрити меню гостя (Симуляція)" 
-                                            className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                                            className="p-2 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
                                         >
                                             <LinkIcon className="w-5 h-5" />
                                         </button>
@@ -409,7 +434,6 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
             defaultWidth = 30;
             defaultHeight = 4;
         } else if (type === 'VOID') {
-            // Зріз кута/площі залу
             defaultWidth = 35;
             defaultHeight = 35;
             defaultX = 80;
@@ -515,7 +539,6 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
     const saveLayout = async () => {
         setSaving(true);
         try {
-            // 1. Оновлення столів
             const tablesPayload = Object.entries(positions).map(([id, pos]) => ({
                 id,
                 positionX: pos.x,
@@ -527,7 +550,6 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
             }));
             await api.patch('/tables/positions', tablesPayload);
 
-            // 2. Оновлення елементів поточної зони (зберігаючи наявні UUID для уникнення видалення/перестворення)
             const elementsPayload = elements.map(el => ({
                 id: el.id && !el.id.startsWith('temp-') ? el.id : null,
                 name: el.name,
@@ -578,13 +600,13 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                     }}
                                     className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
                                         currentZone === z.id
-                                            ? 'bg-indigo-600 text-white shadow-md'
+                                            ? 'bg-amber-600 text-white shadow-md'
                                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 >
                                     {z.name}
                                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                        currentZone === z.id ? 'bg-indigo-700 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                        currentZone === z.id ? 'bg-amber-700 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                                     }`}>
                                         {count}
                                     </span>
@@ -599,7 +621,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                         onClick={() => setSnapToGrid(!snapToGrid)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
                             snapToGrid
-                                ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400'
+                                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
                                 : 'bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500'
                         }`}
                         title="Магнітна сітка допомагає вирівнювати столи"
@@ -611,7 +633,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                     <button 
                         onClick={saveLayout} 
                         disabled={saving} 
-                        className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all active:scale-95 disabled:opacity-50"
                     >
                         <CheckIcon className="w-5 h-5"/> {saving ? 'Збереження...' : 'Зберегти схему'}
                     </button>
@@ -624,64 +646,63 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                     Контур залу та інтер'єр:
                 </span>
 
-                {/* Кнопка створення зрізу площі - можна додавати кілька! */}
                 <button 
                     onClick={() => addDecorElement('VOID', 'Зріз площі')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold transition-colors border border-amber-500/40 shadow-sm"
                     title="Додає прямокутник, який вирізає частину площі залу. Можна додати кілька таких блоків і перетягувати куди завгодно."
                 >
-                    ⬛ + Зріз площі
+                    <Scissors className="w-3.5 h-3.5" /> + Зріз площі
                 </button>
 
                 <button 
                     onClick={() => addDecorElement('WALL', 'Стіна / Перегородка')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-500/10 hover:bg-slate-500/20 text-slate-700 dark:text-slate-300 font-bold transition-colors border border-slate-500/20"
                 >
-                    🧱 Стіна
+                    <BrickWall className="w-3.5 h-3.5" /> Стіна
                 </button>
                 
                 <button 
                     onClick={() => addDecorElement('BAR', 'Барна стійка')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold transition-colors border border-amber-500/20"
                 >
-                    🍸 Барна стійка
+                    <Wine className="w-3.5 h-3.5" /> Барна стійка
                 </button>
 
                 <button 
                     onClick={() => addDecorElement('KITCHEN', 'Роздача кухні')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold transition-colors border border-emerald-500/20"
                 >
-                    🍳 Роздача кухні
+                    <ChefHat className="w-3.5 h-3.5" /> Роздача кухні
                 </button>
 
                 <button 
                     onClick={() => addDecorElement('ENTRANCE', 'Вхід / Вихід')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 font-bold transition-colors border border-blue-500/20"
                 >
-                    🚪 Вхід
+                    <DoorOpen className="w-3.5 h-3.5" /> Вхід
                 </button>
 
                 <button 
                     onClick={() => addDecorElement('WC', 'Вбиральня')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-400 font-bold transition-colors border border-purple-500/20"
                 >
-                    🚻 WC
+                    <Bath className="w-3.5 h-3.5" /> WC
                 </button>
 
                 <button 
                     onClick={() => addDecorElement('PLANT', 'Озеленення')} 
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-400 font-bold transition-colors border border-teal-500/20"
                 >
-                    🌿 Озеленення
+                    <Trees className="w-3.5 h-3.5" /> Озеленення
                 </button>
             </div>
 
-            {/* Persistent Control Bar (Fixed height to prevent canvas from shifting/jumping) */}
+            {/* Persistent Control Bar */}
             <div className="min-h-[64px] flex items-center">
                 {selectedTableData ? (
-                    <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl border border-indigo-200 dark:border-indigo-800/80 animate-in fade-in duration-150">
+                    <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/80 animate-in fade-in duration-150">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-base shadow-sm">
+                            <div className="w-9 h-9 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center text-base shadow-sm">
                                 {selectedTableData.number}
                             </div>
                             <div>
@@ -696,33 +717,33 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
 
                         <div className="flex flex-wrap items-center gap-2.5">
                             {/* Форма */}
-                            <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl border border-indigo-200 dark:border-slate-700 text-xs font-semibold">
+                            <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl border border-amber-200 dark:border-slate-700 text-xs font-semibold">
                                 <button 
                                     onClick={() => setTableShape('SQUARE')}
-                                    className={`px-3 py-1 rounded-lg transition-colors ${selectedTableData.shape !== 'RECTANGLE' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
+                                    className={`px-3 py-1 rounded-lg transition-colors ${selectedTableData.shape !== 'RECTANGLE' ? 'bg-amber-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
                                 >
                                     Квадрат
                                 </button>
                                 <button 
                                     onClick={() => setTableShape('RECTANGLE')}
-                                    className={`px-3 py-1 rounded-lg transition-colors ${selectedTableData.shape === 'RECTANGLE' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
+                                    className={`px-3 py-1 rounded-lg transition-colors ${selectedTableData.shape === 'RECTANGLE' ? 'bg-amber-600 text-white' : 'text-slate-600 dark:text-slate-300'}`}
                                 >
                                     Прямокутник
                                 </button>
                             </div>
 
                             {/* Кількість місць */}
-                            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-3 py-1 rounded-xl border border-indigo-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+                            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-3 py-1 rounded-xl border border-amber-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
                                 <span className="text-slate-400 mr-1">Місць:</span>
-                                <button onClick={() => changeSeats(-1)} className="px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400">-</button>
+                                <button onClick={() => changeSeats(-1)} className="px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400">-</button>
                                 <span className="px-1">{selectedTableData.seats || 4}</span>
-                                <button onClick={() => changeSeats(1)} className="px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400">+</button>
+                                <button onClick={() => changeSeats(1)} className="px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400">+</button>
                             </div>
 
                             {/* Обертання / Орієнтація */}
                             <button 
                                 onClick={rotateSelectedTable}
-                                className="flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-300 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-slate-700 text-xs font-bold transition-colors"
+                                className="flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-slate-700 text-amber-700 dark:text-amber-300 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-slate-700 text-xs font-bold transition-colors"
                                 title="Змінити орієнтацію на 90°"
                             >
                                 <ArrowPathIcon className="w-4 h-4"/>
@@ -735,7 +756,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                             <select
                                 value={selectedTableData.zone || 'MAIN'}
                                 onChange={e => setTableZone(e.target.value)}
-                                className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-indigo-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl text-xs font-semibold"
+                                className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-amber-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl text-xs font-semibold"
                             >
                                 {ZONES.map(z => <option key={z.id} value={z.id}>Зона: {z.name}</option>)}
                             </select>
@@ -743,7 +764,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                             {/* Закрити */}
                             <button 
                                 onClick={() => setSelectedTableId(null)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-indigo-100 dark:hover:bg-slate-700 transition-colors ml-1"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-amber-100 dark:hover:bg-slate-700 transition-colors ml-1"
                                 title="Закрити панель"
                             >
                                 <XMarkIcon className="w-5 h-5"/>
@@ -753,15 +774,9 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 ) : selectedElementData ? (
                     <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/80 animate-in fade-in duration-150">
                         <div className="flex items-center gap-3">
-                            <span className="text-2xl">
-                                {selectedElementData.type === 'VOID' && '⬛'}
-                                {selectedElementData.type === 'WALL' && '🧱'}
-                                {selectedElementData.type === 'BAR' && '🍸'}
-                                {selectedElementData.type === 'KITCHEN' && '🍳'}
-                                {selectedElementData.type === 'ENTRANCE' && '🚪'}
-                                {selectedElementData.type === 'WC' && '🚻'}
-                                {selectedElementData.type === 'PLANT' && '🌿'}
-                            </span>
+                            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                                {getElementIcon(selectedElementData.type, 'w-5 h-5')}
+                            </div>
                             <div>
                                 <div className="font-bold text-slate-900 dark:text-white text-sm">
                                     {selectedElementData.type === 'VOID' ? 'Зріз площі залу (Вирізана зона)' : selectedElementData.name}
@@ -822,7 +837,8 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 ) : (
                     <div className="w-full flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
                         <span className="flex items-center gap-2">
-                            <span>👆</span> <b>Налаштування:</b> Клікніть на будь-який стіл, стіну чи зріз площі на плані, щоб змінити розміри, форму чи перемістити.
+                            <MousePointerClick className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span><b>Налаштування:</b> Клікніть на будь-який стіл, стіну чи зріз площі на плані, щоб змінити розміри, форму чи перемістити.</span>
                         </span>
                         <span className="text-[11px] opacity-75 hidden sm:inline">
                             Перетягуйте мишкою або пальцем
@@ -843,7 +859,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 className="w-full aspect-[4/3] md:aspect-[16/9] rounded-3xl relative overflow-hidden shadow-2xl cursor-default select-none"
                 style={{ touchAction: 'none' }}
             >
-                {/* SVG Blueprint Floor natively masked inside SVG (100% Safari, Chrome & Firefox support) */}
+                {/* SVG Blueprint Floor natively masked inside SVG */}
                 <svg className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden pointer-events-none" width="100%" height="100%">
                     <defs>
                         <mask id={`admin-hall-mask-${currentZone}`} maskContentUnits="objectBoundingBox">
@@ -869,7 +885,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                     <rect 
                         width="100%" 
                         height="100%" 
-                        fill="#020617" 
+                        fill="#0c0a09" 
                         mask={elements.some(el => (el.zone || 'MAIN') === currentZone && el.type === 'VOID') ? `url(#admin-hall-mask-${currentZone})` : undefined} 
                     />
                     <rect 
@@ -881,7 +897,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 </svg>
 
                 {/* Zone Label Watermark */}
-                <div className="absolute top-4 left-6 text-slate-700 text-2xl font-black tracking-widest uppercase pointer-events-none select-none">
+                <div className="absolute top-4 left-6 text-stone-700 text-2xl font-black tracking-widest uppercase pointer-events-none select-none">
                     {ZONES.find(z => z.id === currentZone)?.name}
                 </div>
 
@@ -890,7 +906,6 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                     const isSelected = selectedElementId === el.id;
                     const rot = el.rotation || 0;
 
-                    // Зріз площі: на полотні він буквально вирізає площу (колір фону сторінки + стіна по периметру)
                     if (el.type === 'VOID') {
                         return (
                             <div
@@ -904,7 +919,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 className={`absolute border-2 border-dashed rounded-2xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-all ${
                                     isSelected 
                                         ? 'border-amber-400 bg-amber-500/15 ring-4 ring-amber-400/40 z-30 scale-102' 
-                                        : 'border-slate-500/50 bg-slate-950/70 hover:border-amber-400/60 z-15'
+                                        : 'border-stone-500/50 bg-stone-950/70 hover:border-amber-400/60 z-15'
                                 }`}
                                 style={{
                                     left: `${el.positionX}%`,
@@ -917,34 +932,34 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 title="Зріз площі (Перетягніть мишкою або змініть розміри в панелі)"
                             >
                                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-xs text-amber-300 font-bold text-[11px] select-none pointer-events-none border border-amber-500/30">
-                                    <span>✂️</span>
+                                    <Scissors className="w-3.5 h-3.5" />
                                     <span>Зріз {Math.round(el.width)}×{Math.round(el.height)}%</span>
                                 </div>
                             </div>
                         );
                     }
 
-                    let bgStyle = 'bg-slate-800/90 border-slate-600 text-slate-200';
-                    let icon = '🧱';
+                    let bgStyle = 'bg-stone-800/90 border-stone-600 text-stone-200';
+                    let iconNode: React.ReactNode = <BrickWall className="w-3.5 h-3.5 shrink-0" />;
 
                     if (el.type === 'WALL') {
-                        bgStyle = 'bg-slate-700 border-slate-500 text-slate-200 shadow-md';
-                        icon = '';
+                        bgStyle = 'bg-stone-700 border-stone-500 text-stone-200 shadow-md';
+                        iconNode = null;
                     } else if (el.type === 'BAR') {
                         bgStyle = 'bg-amber-950/80 border-amber-600/80 text-amber-200';
-                        icon = '🍸';
+                        iconNode = <Wine className="w-3.5 h-3.5 shrink-0" />;
                     } else if (el.type === 'KITCHEN') {
                         bgStyle = 'bg-emerald-950/80 border-emerald-600/80 text-emerald-200';
-                        icon = '🍳';
+                        iconNode = <ChefHat className="w-3.5 h-3.5 shrink-0" />;
                     } else if (el.type === 'ENTRANCE') {
                         bgStyle = 'bg-blue-950/80 border-blue-500/80 text-blue-200 border-dashed';
-                        icon = '🚪';
+                        iconNode = <DoorOpen className="w-3.5 h-3.5 shrink-0" />;
                     } else if (el.type === 'WC') {
                         bgStyle = 'bg-purple-950/80 border-purple-600/80 text-purple-200';
-                        icon = '🚻';
+                        iconNode = <Bath className="w-3.5 h-3.5 shrink-0" />;
                     } else if (el.type === 'PLANT') {
                         bgStyle = 'bg-teal-950/80 border-teal-600/80 text-teal-200';
-                        icon = '🌿';
+                        iconNode = <Trees className="w-3.5 h-3.5 shrink-0" />;
                     }
 
                     return (
@@ -974,7 +989,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                     className="flex items-center justify-center gap-1.5 max-w-full px-1"
                                     style={{ transform: `rotate(${-rot}deg)` }}
                                 >
-                                    {icon && <span className="text-sm select-none">{icon}</span>}
+                                    {iconNode}
                                     <span className="font-bold text-[11px] select-none tracking-wide truncate opacity-90">
                                         {el.name}
                                     </span>
@@ -1011,8 +1026,8 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 setSelectedTableId(t.id);
                                 setSelectedElementId(null);
                             }}
-                            className={`absolute bg-indigo-600 text-white flex flex-col justify-between items-center p-2 shadow-xl cursor-grab active:cursor-grabbing border-2 border-indigo-400 transition-transform ${shapeClasses} ${
-                                isSelected ? 'ring-4 ring-yellow-400 z-40 scale-105 shadow-indigo-500/50' : 'hover:scale-102 z-20'
+                            className={`absolute bg-stone-800 text-white flex flex-col justify-between items-center p-2.5 shadow-xl cursor-grab active:cursor-grabbing border-2 border-amber-500/80 transition-transform ${shapeClasses} ${
+                                isSelected ? 'ring-4 ring-amber-400 z-40 scale-105 bg-amber-700 border-amber-300' : 'hover:scale-102 z-20'
                             }`}
                             style={{
                                 left: `${pos.x}%`,
@@ -1026,16 +1041,16 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 <span className="text-sm sm:text-base md:text-lg font-black tracking-tight">
                                     №{t.number}
                                 </span>
-                                <span className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-black/25 text-white">
-                                    👥 {seats}
+                                <span className="flex items-center gap-0.5 text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded-md bg-black/30 text-stone-100">
+                                    <UsersIcon className="w-3 h-3" /> {seats}
                                 </span>
                             </div>
 
-                            <div className="text-[10px] sm:text-[11px] font-bold text-indigo-100 opacity-90 select-none my-auto">
+                            <div className="text-[10px] sm:text-[11px] font-bold text-amber-200 select-none my-auto">
                                 {shape === 'RECTANGLE' ? (isVertical ? 'Вертикальний' : 'Горизонтальний') : 'Квадрат'}
                             </div>
 
-                            <div className="text-[9px] text-indigo-200/80 font-mono font-medium select-none">
+                            <div className="text-[9px] text-stone-300 font-mono font-medium select-none">
                                 {Math.round(pos.x)}%, {Math.round(pos.y)}%
                             </div>
                         </div>
@@ -1043,15 +1058,16 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 })}
 
                 {zoneTables.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm font-medium pointer-events-none">
+                    <div className="absolute inset-0 flex items-center justify-center text-stone-500 text-sm font-medium pointer-events-none">
                         У цій зоні ще немає столів. Перетягніть стіл сюди або створіть новий.
                     </div>
                 )}
             </div>
 
             <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                    💡 <b>Підказка:</b> Додавайте <b>«⬛ + Зріз площі»</b>, щоб відсікати будь-яку кількість кутів та ніш, надаючи залу будь-якої нестандартної форми.
+                <div className="flex items-center gap-1.5">
+                    <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span><b>Підказка:</b> Додавайте <b>«+ Зріз площі»</b>, щоб відсікати будь-яку кількість кутів та ніш, надаючи залу нестандартної форми.</span>
                 </div>
                 <div>
                     Перетягуйте мишкою або пальцем.

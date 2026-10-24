@@ -22,7 +22,11 @@ import {
     GiftIcon,
     TagIcon,
     CheckIcon,
-    XMarkIcon
+    XMarkIcon,
+    PlusIcon,
+    MinusIcon,
+    TrashIcon,
+    ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
 import { ShoppingBagIcon, HeartIcon } from '@heroicons/react/24/solid';
@@ -39,18 +43,30 @@ export default function GuestApp() {
     }, []);
     
     return (
-        <div className="min-h-screen pb-32 max-w-md mx-auto bg-slate-50 dark:bg-slate-950 relative shadow-2xl overflow-hidden sm:rounded-[3rem] sm:my-10 sm:border-[8px] sm:border-slate-900 dark:sm:border-slate-800 text-slate-900 dark:text-slate-100 transition-colors duration-300">
-            <header className="glass dark:bg-slate-900/80 dark:border-slate-800/60 sticky top-0 z-30 px-6 py-4 flex justify-between items-center transition-colors">
-                <div>
-                    <h1 className="text-xs sm:text-sm font-semibold tracking-widest text-slate-500 dark:text-slate-400 uppercase">Стіл {tableNum}</h1>
-                    <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Ваше меню</div>
-                </div>
-                <CallWaiterButton />
-            </header>
-            <main className="p-6">
-                <GuestFlow />
-            </main>
-            <Footer info={restaurantInfo} theme={theme} toggle={toggle} />
+        <div className="min-h-screen bg-stone-100/60 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans transition-colors duration-300">
+            <div className="min-h-screen pb-32 max-w-xl mx-auto bg-stone-50 dark:bg-stone-950 relative sm:border-x sm:border-stone-200/80 dark:sm:border-stone-800/80 shadow-sm flex flex-col">
+                <header className="glass dark:bg-stone-900/90 dark:border-stone-800/80 sticky top-0 z-30 px-5 sm:px-6 py-3.5 flex justify-between items-center transition-colors border-x-0 border-t-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex flex-col items-center justify-center shadow-sm shrink-0">
+                            <span className="text-[9px] font-bold uppercase tracking-wider leading-none opacity-80">Стіл</span>
+                            <span className="text-sm font-black leading-tight">{tableNum}</span>
+                        </div>
+                        <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                                {restaurantInfo?.name || 'Цифрове меню'}
+                            </div>
+                            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-stone-900 dark:text-white leading-tight">
+                                Ваше замовлення
+                            </h1>
+                        </div>
+                    </div>
+                    <CallWaiterButton />
+                </header>
+                <main className="p-4 sm:p-6 flex-1">
+                    <GuestFlow />
+                </main>
+                <Footer info={restaurantInfo} theme={theme} toggle={toggle} />
+            </div>
         </div>
     );
 }
@@ -60,7 +76,7 @@ function CallWaiterButton() {
     const [showToast, setShowToast] = useState(false);
 
     useEffect(() => {
-        api.get('/service-calls/my').then(res => setCalling(res.data.length > 0));
+        api.get('/service-calls/my').then(res => setCalling(res.data.length > 0)).catch(() => {});
         const client = getStompClient();
         if (!client) return;
         const unsubConnect = onWsConnect(() => client.subscribe('/user/queue/service-calls', (msg) => {
@@ -89,28 +105,32 @@ function CallWaiterButton() {
             <button 
                 onClick={call} 
                 disabled={calling}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
                     calling 
-                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30 animate-pulse' 
-                        : 'bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 shadow-xs active:scale-95'
+                        ? 'bg-amber-600 text-white shadow-sm' 
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200/90 dark:border-stone-700 shadow-xs active:scale-95'
                 }`}
                 aria-label="Викликати офіціанта"
             >
-                <BellIcon className={`w-4 h-4 stroke-2 ${calling ? 'text-white animate-bounce' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span className="relative flex items-center justify-center">
+                    <BellIcon className={`w-4 h-4 stroke-2 ${calling ? 'text-white' : 'text-amber-600 dark:text-amber-500'}`} />
+                    {calling && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white animate-ping" />
+                    )}
+                </span>
                 <span>{calling ? 'Офіціант іде...' : 'Офіціант'}</span>
             </button>
 
             {showToast && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-xl border border-white/10 flex items-center gap-2.5 text-xs font-semibold animate-slideUpFade">
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-stone-900/95 dark:bg-stone-800/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-xl border border-white/10 flex items-center gap-2.5 text-xs font-semibold animate-slideUpFade max-w-xs w-full">
                     <CheckCircleIcon className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <span>Офіціант повідомлений та вже прямує до вашого столу!</span>
+                    <span>Офіціант отримав виклик та вже прямує до вашого столу!</span>
                 </div>
             )}
         </>
     );
 }
 
-// Тип для корзини з опціями
 type CartItem = {
     cartId: string;
     menuItemId: number;
@@ -126,8 +146,10 @@ function GuestFlow() {
     const [targetPromoMenuItemId, setTargetPromoMenuItemId] = useState<number | null>(null);
     const [targetCategory, setTargetCategory] = useState<string | null>(null);
     const [lastComboPromoId, setLastComboPromoId] = useState<string | null>(null);
+    const [isCartOpen, setIsCartOpen] = useState(false);
+    const [submittingOrder, setSubmittingOrder] = useState(false);
 
-    const fetchOrders = () => api.get('/orders/my').then(res => setOrders(res.data));
+    const fetchOrders = () => api.get('/orders/my').then(res => setOrders(res.data)).catch(() => {});
 
     const upsertOrRemoveOrder = (updatedOrder: any) => {
         if (!updatedOrder || !updatedOrder.id) return;
@@ -162,6 +184,22 @@ function GuestFlow() {
         return () => { unsubConnect(); if (client.connected) client.unsubscribe('/user/queue/order-updates'); };
     }, []);
 
+    useEffect(() => {
+        if (isCartOpen) {
+            const orig = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => { document.body.style.overflow = orig; };
+        }
+    }, [isCartOpen]);
+
+    const updateCartQty = (cartId: string, delta: number) => {
+        setCart((prev: CartItem[]) => {
+            const next = prev.map(c => c.cartId === cartId ? { ...c, quantity: c.quantity + delta } : c).filter(c => c.quantity > 0);
+            if (next.length === 0) setIsCartOpen(false);
+            return next;
+        });
+    };
+
     const sendOrder = async () => {
         const payloadItems = cart.map(c => ({
             menuItemId: c.menuItemId,
@@ -169,7 +207,8 @@ function GuestFlow() {
             options: c.options
         }));
         
-        if (!payloadItems.length) return;
+        if (!payloadItems.length || submittingOrder) return;
+        setSubmittingOrder(true);
         
         try {
             const res = await api.post('/orders', { items: payloadItems });
@@ -182,15 +221,20 @@ function GuestFlow() {
                 setLastComboPromoId(null);
             }
             setCart([]);
+            setIsCartOpen(false);
             upsertOrRemoveOrder(finalOrder);
-        } catch(e:any) { alert(e.response?.data?.message || 'Помилка замовлення'); }
+        } catch(e:any) {
+            alert(e.response?.data?.message || 'Помилка оформлення замовлення');
+        } finally {
+            setSubmittingOrder(false);
+        }
     };
 
     const count = cart.reduce((a, b) => a + b.quantity, 0);
     const totalAmount = cart.reduce((a, b) => a + (b.price * b.quantity), 0);
 
     return (
-        <div className="space-y-8 relative">
+        <div className="space-y-6 relative">
             <PromoCarousel 
                 onSelectMenuItem={(id) => setTargetPromoMenuItemId(id)} 
                 onSelectCategory={(cat) => setTargetCategory(cat)}
@@ -204,6 +248,7 @@ function GuestFlow() {
             <Menu 
                 cart={cart} 
                 setCart={setCart} 
+                updateCartQty={updateCartQty}
                 targetPromoMenuItemId={targetPromoMenuItemId} 
                 clearTargetPromo={() => setTargetPromoMenuItemId(null)}
                 targetCategory={targetCategory}
@@ -211,18 +256,127 @@ function GuestFlow() {
                 onSelectComboForOrder={(promoId) => setLastComboPromoId(promoId)}
             />
             
+            {/* Плаваюча панель відкриття кошика */}
             {count > 0 && (
-                <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-0 right-0 px-6 z-40 max-w-md mx-auto animate-slideUpFade">
-                    <button onClick={sendOrder} className="w-full glass-dark dark:bg-indigo-600/90 dark:border-indigo-400/30 text-white p-4 rounded-3xl font-bold flex flex-col justify-center hover:scale-[1.02] active:scale-95 transition-transform shadow-2xl cursor-pointer">
-                        <div className="flex justify-between items-center w-full">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-white/20 p-2 rounded-2xl"><ShoppingBagIcon className="w-6 h-6" /></div>
-                                <span className="text-lg">Оформити ({count})</span>
+                <div className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 px-4 sm:px-6 z-40 max-w-xl mx-auto animate-slideUpFade">
+                    <button
+                        onClick={() => setIsCartOpen(true)}
+                        className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-amber-600 dark:hover:bg-amber-500 text-white p-4 rounded-2xl font-bold flex items-center justify-between active:scale-[0.99] transition-all shadow-xl border border-stone-800 dark:border-amber-500/40 cursor-pointer"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="bg-amber-500 dark:bg-stone-950/30 text-white px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-sm font-black">
+                                <ShoppingBagIcon className="w-4 h-4" />
+                                <span>{count}</span>
                             </div>
-                            <span className="text-xl tracking-tight">{totalAmount}&nbsp;₴ →</span>
+                            <div className="text-left">
+                                <div className="text-sm sm:text-base font-bold leading-tight">Переглянути кошик</div>
+                                <div className="text-[11px] font-medium text-stone-300 dark:text-amber-100">Перевірте позиції перед відправкою</div>
+                            </div>
                         </div>
+                        <span className="text-base sm:text-lg font-extrabold tracking-tight bg-white/10 px-3 py-1.5 rounded-xl whitespace-nowrap">
+                            {totalAmount}&nbsp;₴ →
+                        </span>
                     </button>
                 </div>
+            )}
+
+            {/* Модальне вікно / шторка кошика (Cart Bottom Sheet) */}
+            {isCartOpen && count > 0 && createPortal(
+                <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade"
+                    onClick={() => setIsCartOpen(false)}
+                >
+                    <div
+                        className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[88dvh] border-t sm:border border-stone-200 dark:border-stone-800"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between bg-stone-50/60 dark:bg-stone-950/40">
+                            <div className="flex items-center gap-2.5">
+                                <ShoppingBagIcon className="w-5 h-5 text-amber-600 dark:text-amber-500" />
+                                <h3 className="font-bold text-base sm:text-lg text-stone-900 dark:text-white">
+                                    Ваше замовлення ({count})
+                                </h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setCart([]); setIsCartOpen(false); }}
+                                    className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                                    title="Очистити кошик"
+                                >
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCartOpen(false)}
+                                    className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                                >
+                                    <XMarkIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-3 divide-y divide-stone-100 dark:divide-stone-800/80">
+                            {cart.map(c => {
+                                const optKeys = Object.keys(c.options);
+                                const optsText = optKeys.map(k => c.options[k]).flat().filter(Boolean).join(', ');
+                                return (
+                                    <div key={c.cartId} className="pt-3 first:pt-0 flex justify-between items-center gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-semibold text-sm text-stone-900 dark:text-white leading-snug">
+                                                {c.name}
+                                            </div>
+                                            {optsText && (
+                                                <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 leading-tight">
+                                                    {optsText}
+                                                </div>
+                                            )}
+                                            <div className="text-amber-700 dark:text-amber-400 font-bold text-xs mt-1">
+                                                {c.price} ₴ × {c.quantity} = {c.price * c.quantity} ₴
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-stone-100 dark:bg-stone-800 rounded-xl p-1 shrink-0 border border-stone-200/70 dark:border-stone-700">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateCartQty(c.cartId, -1)}
+                                                className="w-7 h-7 flex items-center justify-center bg-white dark:bg-stone-700 rounded-lg shadow-xs font-bold text-stone-700 dark:text-stone-200 active:scale-95 transition-all cursor-pointer"
+                                            >
+                                                <MinusIcon className="w-3.5 h-3.5 stroke-2" />
+                                            </button>
+                                            <span className="font-bold text-xs text-stone-900 dark:text-white w-5 text-center">
+                                                {c.quantity}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateCartQty(c.cartId, 1)}
+                                                className="w-7 h-7 flex items-center justify-center bg-white dark:bg-stone-700 rounded-lg shadow-xs font-bold text-stone-700 dark:text-stone-200 active:scale-95 transition-all cursor-pointer"
+                                            >
+                                                <PlusIcon className="w-3.5 h-3.5 stroke-2" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-stone-200/80 dark:border-stone-800 bg-stone-50 dark:bg-stone-950/60 space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-stone-500 dark:text-stone-400 font-medium">Разом до сплати:</span>
+                                <span className="text-xl font-extrabold text-stone-900 dark:text-white">{totalAmount}&nbsp;₴</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={sendOrder}
+                                disabled={submittingOrder}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                            >
+                                <CheckIcon className="w-5 h-5 stroke-2" />
+                                <span>{submittingOrder ? 'Відправляємо на кухню...' : 'Підтвердити замовлення'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );
@@ -287,26 +441,30 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
     };
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                <FireIcon className="w-5 h-5 text-amber-500" /> Ваші замовлення
+        <div className="space-y-3">
+            <h2 className="text-base font-bold tracking-tight text-stone-900 dark:text-white flex items-center gap-2">
+                <FireIcon className="w-5 h-5 text-amber-600" />
+                <span>Активні замовлення</span>
             </h2>
             <div className="space-y-4">
                 {orders.map(o => (
-                    <div key={o.id} className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs relative">
-                        <div className="flex justify-between items-start mb-3">
-                            <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
+                    <div key={o.id} className="bg-white dark:bg-stone-900 rounded-2xl p-4 sm:p-5 border border-stone-200/80 dark:border-stone-800 shadow-xs relative">
+                        <div className="flex justify-between items-center mb-3.5">
+                            <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${
                                 o.status === 'NEW' 
-                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' 
+                                    ? 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300' 
                                     : o.status === 'PREPARING' 
-                                        ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 ring-1 ring-amber-100 dark:ring-amber-900/40' 
-                                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-900/40'
+                                        ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60' 
+                                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
                             }`}>
-                                {o.status === 'NEW' ? 'В черзі' : o.status === 'PREPARING' ? 'Готується' : 'Готово'}
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                    o.status === 'NEW' ? 'bg-stone-400' : o.status === 'PREPARING' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+                                }`} />
+                                {o.status === 'NEW' ? 'Прийнято' : o.status === 'PREPARING' ? 'Готується' : 'Готово до подачі'}
                             </span>
-                            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">{o.total}&nbsp;₴</span>
+                            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-stone-900 dark:text-white whitespace-nowrap">{o.total}&nbsp;₴</span>
                         </div>
-                        <div className="text-sm text-slate-500 dark:text-slate-400 mb-5 space-y-2.5">
+                        <div className="text-sm text-stone-600 dark:text-stone-400 mb-4 space-y-2">
                             {o.items.map((i: any, idx: number) => {
                                 const opts = formatOptions(i.selectedOptions);
                                 const isItemReady = i.status === "READY";
@@ -314,75 +472,77 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                 const isItemPreparing = i.status === "PREPARING";
 
                                 return (
-                                <div key={idx} className="flex justify-between items-center p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                                <div key={idx} className="flex justify-between items-center p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/60 dark:border-stone-700/50">
                                     <div className="flex gap-2.5 items-center min-w-0 pr-2">
-                                        <span className="text-slate-600 dark:text-slate-300 font-bold text-xs bg-white dark:bg-slate-700 px-2 py-1 rounded-lg shadow-2xs border border-slate-200/60 dark:border-slate-600 whitespace-nowrap">{i.quantity}×</span> 
+                                        <span className="text-stone-700 dark:text-stone-200 font-bold text-xs bg-white dark:bg-stone-700 px-2 py-0.5 rounded-md border border-stone-200/80 dark:border-stone-600 whitespace-nowrap">{i.quantity}×</span> 
                                         <div className="min-w-0">
-                                            <div className={`font-semibold leading-tight truncate ${isItemServed ? "line-through text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-200"}`}>{i.name}</div>
-                                            {opts && <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">{opts}</div>}
+                                            <div className={`font-semibold text-sm leading-snug truncate ${isItemServed ? "line-through text-stone-400 dark:text-stone-500" : "text-stone-900 dark:text-stone-100"}`}>{i.name}</div>
+                                            {opts && <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 truncate">{opts}</div>}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         {isItemReady && (
-                                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-800 animate-pulse">
-                                                🍳 Несуть вам!
+                                            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-800 inline-flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping" />
+                                                <span>Несуть вам</span>
                                             </span>
                                         )}
                                         {isItemServed && (
-                                            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300/30">
-                                                ✓ Подано
+                                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 inline-flex items-center gap-1">
+                                                <CheckIcon className="w-3 h-3 stroke-2" />
+                                                <span>Подано</span>
                                             </span>
                                         )}
                                         {isItemPreparing && (
-                                            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/40">
-                                                ⏳ Готується
+                                            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/40 inline-flex items-center gap-1">
+                                                <ClockIcon className="w-3 h-3" />
+                                                <span>Готується</span>
                                             </span>
                                         )}
                                         {(!i.status || i.status === "NEW") && (
-                                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-200/60 dark:bg-slate-700 px-2 py-0.5 rounded-full">
+                                            <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400 bg-stone-200/60 dark:bg-stone-700 px-2 py-0.5 rounded-full">
                                                 В черзі
                                             </span>
                                         )}
-                                        <span className="font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap text-xs ml-1">{i.priceAtTime * i.quantity} ₴</span>
+                                        <span className="font-bold text-stone-800 dark:text-stone-200 whitespace-nowrap text-xs ml-1">{i.priceAtTime * i.quantity} ₴</span>
                                     </div>
                                 </div>
                             )})}
                         </div>
 
-                        {/* Знижка за акцією (якщо застосована) */}
                         {o.discountAmount > 0 && (
-                            <div className="mb-4 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex justify-between items-center text-xs gap-3">
+                            <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex justify-between items-center text-xs gap-3">
                                 <div className="min-w-0 flex-1">
-                                    <div className="font-bold text-emerald-800 dark:text-emerald-300 truncate">
-                                        🎉 {o.appliedPromotionTitle}
+                                    <div className="font-bold text-emerald-800 dark:text-emerald-300 truncate flex items-center gap-1.5">
+                                        <TagIcon className="w-4 h-4 shrink-0" />
+                                        <span className="truncate">{o.appliedPromotionTitle}</span>
                                     </div>
                                     <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
                                         Сума без знижки: {o.subtotal || (Number(o.total) + Number(o.discountAmount))}&nbsp;₴
                                     </div>
                                 </div>
                                 <div className="text-right shrink-0 whitespace-nowrap">
-                                    <span className="font-black text-sm text-emerald-600 dark:text-emerald-400 whitespace-nowrap inline-block">
+                                    <span className="font-black text-sm text-emerald-700 dark:text-emerald-400 whitespace-nowrap inline-block">
                                         -{o.discountAmount}&nbsp;₴
                                     </span>
                                 </div>
                             </div>
                         )}
 
-                        {/* Кнопка активації акції або виклику офіціанта */}
                         {!o.paid && (!o.discountAmount || o.discountAmount === 0) && (
                             <div className="mb-3 space-y-2">
                                 {activePromotions.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setPromosModalOrderId(o.id)}
-                                        className="w-full p-2.5 rounded-2xl bg-indigo-50/80 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
+                                        className="w-full p-2.5 rounded-xl bg-stone-100 hover:bg-stone-200/70 dark:bg-stone-800 dark:hover:bg-stone-700/70 border border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
                                     >
                                         <span className="flex items-center gap-1.5">
-                                            <span>✨</span>
+                                            <SparklesIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                             <span>Застосувати акцію або комбо</span>
                                         </span>
-                                        <span className="text-[11px] underline font-bold text-indigo-700 dark:text-indigo-300">
-                                            Обрати акцію →
+                                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                                            Обрати →
                                         </span>
                                     </button>
                                 )}
@@ -394,34 +554,34 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                             .then(() => alert("Офіціанта викликано до вашого столу для перевірки та активації святкової знижки!"))
                                             .catch(() => alert("Помилка виклику офіціанта"));
                                     }}
-                                    className="w-full p-2.5 rounded-2xl bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
+                                    className="w-full p-2.5 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/50 text-amber-900 dark:text-amber-200 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
                                 >
                                     <span className="flex items-center gap-1.5">
-                                        <span>🎂</span>
-                                        <span>У вас День народження чи свято?</span>
+                                        <GiftIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                        <span>День народження чи свято?</span>
                                     </span>
-                                    <span className="text-[11px] underline font-bold text-amber-700 dark:text-amber-300">
-                                        Повідомити офіціанта →
+                                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                                        Повідомити →
                                     </span>
                                 </button>
                             </div>
                         )}
 
                         {!o.paid ? (
-                            <div className="flex flex-col gap-2 mt-4">
-                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white p-3.5 rounded-2xl font-semibold disabled:opacity-50 hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-xs cursor-pointer">
-                                    <CreditCardIcon className="w-5 h-5" />
-                                    {checkingOut === o.id ? 'Зачекайте...' : `Оплатити онлайн ${o.total} ₴ (LiqPay)`}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                                <button onClick={() => pay(o.id)} disabled={checkingOut === o.id} className="w-full flex items-center justify-center gap-2 bg-stone-900 dark:bg-amber-600 text-white p-3 rounded-xl text-xs sm:text-sm font-bold disabled:opacity-50 hover:bg-stone-800 dark:hover:bg-amber-500 transition-colors shadow-xs cursor-pointer">
+                                    <CreditCardIcon className="w-4 h-4 shrink-0" />
+                                    <span>{checkingOut === o.id ? 'Зачекайте...' : `Оплатити ${o.total} ₴ (LiqPay)`}</span>
                                 </button>
                                 <button onClick={() => {
                                     api.post('/service-calls', { type: 'BILL' }).then(() => alert('Офіціант зараз підійде з рахунком!'));
-                                }} className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3.5 rounded-2xl font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                                    <BanknotesIcon className="w-5 h-5" />
-                                    Готівкою або терміналом
+                                }} className="w-full flex items-center justify-center gap-2 bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 p-3 rounded-xl text-xs sm:text-sm font-semibold hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors cursor-pointer border border-stone-200/70 dark:border-stone-700">
+                                    <BanknotesIcon className="w-4 h-4 shrink-0" />
+                                    <span>Карткою / готівкою офіціанту</span>
                                 </button>
                             </div>
                         ) : (
-                            <div className="w-full flex items-center justify-center gap-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 p-3.5 rounded-2xl font-bold ring-1 ring-emerald-200 dark:ring-emerald-800">
+                            <div className="w-full flex items-center justify-center gap-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 p-3 rounded-xl text-sm font-bold border border-emerald-200 dark:border-emerald-800">
                                 <CheckCircleIcon className="w-5 h-5" /> Оплачено
                             </div>
                         )}
@@ -429,13 +589,12 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                 ))}
             </div>
 
-            {/* Модалка вибору акції для замовлення */}
             {promosModalOrderId && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in" onClick={() => setPromosModalOrderId(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-sm animate-slideUpFade" onClick={() => setPromosModalOrderId(null)}>
+                    <div className="bg-white dark:bg-stone-900 w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-stone-200 dark:border-stone-800 space-y-4" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center">
-                            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Доступні акції</h3>
-                            <button onClick={() => setPromosModalOrderId(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+                            <h3 className="font-bold text-base text-stone-900 dark:text-white">Доступні акції</h3>
+                            <button onClick={() => setPromosModalOrderId(null)} className="p-1 rounded-lg text-stone-400 hover:text-stone-600">
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
@@ -446,18 +605,20 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                     key={p.id}
                                     disabled={applyingPromo}
                                     onClick={() => handleApplyPromotion(promosModalOrderId, p.id)}
-                                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer disabled:opacity-50"
+                                    className="w-full p-3 rounded-xl border border-stone-200 dark:border-stone-700 hover:border-amber-500 text-left transition-all hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer disabled:opacity-50"
                                 >
-                                    <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center justify-between">
+                                    <div className="font-bold text-xs text-stone-900 dark:text-white flex items-center justify-between">
                                         <span>{p.title}</span>
                                         {p.promoType === 'COMBO' ? (
-                                            <span className="text-[10px] text-amber-500 font-extrabold">🔥 КОМБО</span>
+                                            <span className="text-[10px] text-amber-600 font-bold uppercase flex items-center gap-1">
+                                                <FireIcon className="w-3.5 h-3.5" /> Комбо
+                                            </span>
                                         ) : p.discountPercent > 0 ? (
-                                            <span className="text-[10px] text-emerald-600 font-extrabold">-{p.discountPercent}%</span>
+                                            <span className="text-[10px] text-emerald-600 font-bold">-{p.discountPercent}%</span>
                                         ) : null}
                                     </div>
                                     {p.shortDescription && (
-                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                                        <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
                                             {p.shortDescription}
                                         </p>
                                     )}
@@ -475,6 +636,7 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
 function Menu({ 
     cart, 
     setCart,
+    updateCartQty,
     targetPromoMenuItemId,
     clearTargetPromo,
     targetCategory,
@@ -483,6 +645,7 @@ function Menu({
 }: { 
     cart: CartItem[]; 
     setCart: any;
+    updateCartQty: (cartId: string, delta: number) => void;
     targetPromoMenuItemId?: number | null;
     clearTargetPromo?: () => void;
     targetCategory?: string | null;
@@ -495,11 +658,9 @@ function Menu({
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [likedItems, setLikedItems] = useState<Set<number>>(new Set());
     
-    // Стан для опцій у модалці страви
     const [modalOptions, setModalOptions] = useState<Record<string, string[]>>({});
     const [modalPrice, setModalPrice] = useState<number>(0);
 
-    // Стан для модалки збирання комбо
     const [activeComboModal, setActiveComboModal] = useState<any>(null);
     const [comboSlotSelections, setComboSlotSelections] = useState<Record<string, number>>({});
     const [comboRewardSelection, setComboRewardSelection] = useState<number | null>(null);
@@ -515,7 +676,7 @@ function Menu({
 
             const normalCats = Array.from(new Set((itemsRes.data || []).filter((i:any) => i.isAvailable).map((i:any) => i.categoryName)));
             if (combos.length > 0) {
-                setActiveCategory('🔥 Комбо');
+                setActiveCategory('COMBO');
             } else if (normalCats.length > 0) {
                 setActiveCategory(normalCats[0] as string);
             }
@@ -527,8 +688,6 @@ function Menu({
         } catch(e) {}
     }, []);
 
-    // При кліку на категорію з каруселі
-    // Блокування скролу фонової сторінки під час відкритих модальних вікон
     useEffect(() => {
         if (selectedItem || activeComboModal) {
             const origOverflow = document.body.style.overflow;
@@ -541,11 +700,10 @@ function Menu({
 
     useEffect(() => {
         if (!targetCategory) return;
-        setActiveCategory(targetCategory);
+        setActiveCategory(targetCategory === '🔥 Комбо' ? 'COMBO' : targetCategory);
         if (clearTargetCategory) clearTargetCategory();
     }, [targetCategory]);
 
-    // При кліку на акцію зі стравою
     useEffect(() => {
         if (!targetPromoMenuItemId || items.length === 0) return;
         const target = items.find((i: any) => i.id === targetPromoMenuItemId);
@@ -558,7 +716,6 @@ function Menu({
         }
     }, [targetPromoMenuItemId, items]);
     
-    // Обчислення ціни в модалці при зміні опцій
     useEffect(() => {
         if (!selectedItem) return;
         let p = parseFloat(selectedItem.price);
@@ -672,9 +829,13 @@ function Menu({
             }]);
         }
     };
-    
-    const updateCartQty = (cartId: string, delta: number) => {
-        setCart((prev: CartItem[]) => prev.map(c => c.cartId === cartId ? {...c, quantity: c.quantity + delta} : c).filter(c => c.quantity > 0));
+
+    const decrementItemFromCard = (itemId: number) => {
+        const matching = cart.filter(c => c.menuItemId === itemId);
+        if (matching.length > 0) {
+            const targetCartItem = matching[matching.length - 1];
+            updateCartQty(targetCartItem.cartId, -1);
+        }
     };
 
     const handleLike = (e: React.MouseEvent, id: number) => {
@@ -697,7 +858,6 @@ function Menu({
         }
     };
 
-    // Відкриття модалки конфігуратора комбо
     const openComboModal = (combo: any) => {
         let config: any = null;
         try { config = JSON.parse(combo.comboConfig); } catch(e) {}
@@ -747,7 +907,6 @@ function Menu({
 
         const itemsToAdd: CartItem[] = [];
 
-        // Додаємо позиції вимог (слоти)
         config.slots.forEach((s: any) => {
             const pickedId = comboSlotSelections[s.id];
             const item = items.find(i => i.id === pickedId);
@@ -766,7 +925,6 @@ function Menu({
             }
         });
 
-        // Додаємо подарункову позицію
         if (config.reward && config.reward.rewardType === 'FREE_ITEM' && comboRewardSelection) {
             const rewardItem = items.find(i => i.id === comboRewardSelection);
             if (rewardItem) {
@@ -775,7 +933,7 @@ function Menu({
                     itemsToAdd.push({
                         cartId: Math.random().toString(36).substring(7),
                         menuItemId: rewardItem.id,
-                        name: `${rewardItem.name} (🎁 Подарунок)`,
+                        name: `${rewardItem.name} (Подарунок)`,
                         price: parseFloat(rewardItem.price),
                         quantity: 1,
                         options: {}
@@ -795,15 +953,15 @@ function Menu({
     };
 
     const normalCats = Array.from(new Set(items.filter(i => i.isAvailable).map(i => i.categoryName)));
-    const categories = comboPromotions.length > 0 ? ['🔥 Комбо', ...normalCats] : normalCats;
+    const categories = comboPromotions.length > 0 ? ['COMBO', ...normalCats] : normalCats;
     const currentItems = items.filter(i => i.isAvailable && i.categoryName === activeCategory);
 
     const renderVariations = (variationsStr: string) => {
         try {
             const vars = JSON.parse(variationsStr);
             return vars.map((group: any, idx: number) => (
-                <div key={idx} className="mb-3.5">
-                    <h3 className="font-bold text-slate-900 dark:text-white mb-1.5 text-sm">{group.name}</h3>
+                <div key={idx} className="mb-4">
+                    <h3 className="font-bold text-stone-900 dark:text-white mb-2 text-xs uppercase tracking-wider">{group.name}</h3>
                     <div className="flex flex-wrap gap-2">
                         {group.options.map((opt: any, optIdx: number) => {
                             const isSelected = (modalOptions[group.name] || []).includes(opt.name);
@@ -822,10 +980,10 @@ function Menu({
                                 <button 
                                     key={optIdx}
                                     onClick={toggleOption}
-                                    className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                                    className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border ${
                                         isSelected 
-                                            ? 'bg-indigo-600 text-white shadow-md' 
-                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                            ? 'bg-stone-900 dark:bg-amber-600 text-white border-stone-900 dark:border-amber-600 shadow-xs' 
+                                            : 'bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-200 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700'
                                     }`}
                                 >
                                     {opt.name} 
@@ -842,79 +1000,86 @@ function Menu({
     };
 
     return (
-        <div className="space-y-6 pb-20">
+        <div className="space-y-5 pb-12">
             {/* Горизонтальний список категорій */}
-            <div className="flex gap-3 overflow-x-auto pb-4 pt-2 -mx-6 px-6 scroll-pl-6 no-scrollbar snap-x after:content-[''] after:w-1 after:shrink-0">
-                {categories.map((cat: any) => (
-                    <button 
-                        key={cat} 
-                        onClick={() => setActiveCategory(cat)}
-                        className={`snap-start whitespace-nowrap px-5 py-2.5 rounded-full font-bold transition-all cursor-pointer ${
-                            activeCategory === cat 
-                                ? (cat === '🔥 Комбо' ? 'bg-amber-500 text-white shadow-md' : 'bg-slate-900 dark:bg-indigo-600 text-white shadow-md')
-                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-                        }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
+            <div className="flex gap-2 overflow-x-auto pb-2 pt-1 -mx-4 px-4 sm:-mx-6 sm:px-6 no-scrollbar snap-x">
+                {categories.map((cat: any) => {
+                    const isCombo = cat === 'COMBO';
+                    const isActive = activeCategory === cat;
+                    return (
+                        <button 
+                            key={cat} 
+                            onClick={() => setActiveCategory(cat)}
+                            className={`snap-start whitespace-nowrap px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isActive 
+                                    ? (isCombo ? 'bg-amber-600 text-white shadow-sm' : 'bg-stone-900 dark:bg-amber-600 text-white shadow-sm')
+                                    : 'bg-white dark:bg-stone-900 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 border border-stone-200/80 dark:border-stone-800'
+                            }`}
+                        >
+                            {isCombo && <FireIcon className="w-4 h-4 stroke-2 shrink-0" />}
+                            <span>{isCombo ? 'Комбо-набори' : cat}</span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Модалка зі стравою */}
             {selectedItem && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setSelectedItem(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-t-[2rem] rounded-b-none sm:rounded-[2.2rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[88dvh] sm:max-h-[88vh] border-t sm:border border-slate-100 dark:border-slate-800 overscroll-contain" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setSelectedItem(null)}>
+                    <div className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[88dvh] sm:max-h-[88vh] border-t sm:border border-stone-200 dark:border-stone-800 overscroll-contain" onClick={e => e.stopPropagation()}>
                         {selectedItem.imageUrl && (
-                            <div className="shrink-0 h-40 sm:h-48 w-full bg-slate-950 relative">
-                                <img src={selectedItem.imageUrl} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                            <div className="shrink-0 h-48 sm:h-52 w-full bg-stone-950 relative">
+                                <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
                             </div>
                         )}
-                        <button onClick={() => setSelectedItem(null)} className="absolute top-3.5 right-3.5 w-9 h-9 bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/80 transition-colors cursor-pointer text-sm shadow-md">✕</button>
+                        <button onClick={() => setSelectedItem(null)} className="absolute top-3.5 right-3.5 w-9 h-9 bg-black/55 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/80 transition-colors cursor-pointer shadow-md">
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
                         
-                        {/* Зона скролу контенту */}
                         <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4 overscroll-contain">
-                            <div className="flex justify-between items-start">
-                                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight pr-4">{selectedItem.name}</h2>
+                            <div className="flex justify-between items-start gap-3">
+                                <h2 className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-white leading-tight">{selectedItem.name}</h2>
+                                <span className="text-lg font-extrabold text-amber-600 dark:text-amber-500 whitespace-nowrap shrink-0">{modalPrice} ₴</span>
                             </div>
                             
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-500 bg-pink-50 dark:bg-pink-950/40 w-fit px-3 py-1 rounded-full">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 w-fit px-3 py-1 rounded-full">
                                 <HeartIcon className="w-3.5 h-3.5" /> 
-                                {(selectedItem.favoritesCount || 0)} людям подобається
+                                {(selectedItem.favoritesCount || 0)} вподобань гостей
                             </div>
 
                             {selectedItem.variations && (
-                                <div className="pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                                <div className="pt-3 border-t border-stone-100 dark:border-stone-800/80">
                                     {renderVariations(selectedItem.variations)}
                                 </div>
                             )}
 
                             {selectedItem.ingredients && (
-                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                                    <h3 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Склад:</h3>
-                                    <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed">{selectedItem.ingredients}</p>
+                                <div className="pt-3 border-t border-stone-100 dark:border-stone-800/80">
+                                    <h3 className="font-bold text-stone-900 dark:text-white mb-1 text-xs uppercase tracking-wider">Опис та склад</h3>
+                                    <p className="text-stone-600 dark:text-stone-300 text-sm leading-relaxed">{selectedItem.ingredients}</p>
                                 </div>
                             )}
 
                             {selectedItem.allergens && (
-                                <div className="bg-amber-50 dark:bg-amber-950/40 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/40">
-                                    <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-1 text-xs">Алергени:</h3>
-                                    <p className="text-amber-700 dark:text-amber-400 text-xs">{selectedItem.allergens}</p>
+                                <div className="bg-amber-50/80 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200/70 dark:border-amber-900/40">
+                                    <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-0.5 text-xs">Алергени:</h3>
+                                    <p className="text-amber-800 dark:text-amber-400 text-xs">{selectedItem.allergens}</p>
                                 </div>
                             )}
 
                             {!selectedItem.ingredients && !selectedItem.allergens && !selectedItem.variations && (
-                                <p className="text-slate-500 dark:text-slate-400 italic text-sm">Детальна інформація відсутня</p>
+                                <p className="text-stone-500 dark:text-stone-400 italic text-sm">Детальний опис страви уточнюйте в офіціанта.</p>
                             )}
                         </div>
 
-                        {/* Фіксована панель кнопки додавання (текст ніколи не вилазить під кнопку) */}
-                        <div className="p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 shadow-lg">
+                        <div className="p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 shrink-0">
                             <button 
                                 onClick={addToCart} 
-                                className="w-full bg-slate-900 dark:bg-indigo-600 text-white py-3.5 px-4 rounded-2xl font-bold hover:bg-slate-800 dark:hover:bg-indigo-500 active:scale-[0.98] transition-all flex justify-center gap-2 items-center shadow-md cursor-pointer text-base"
+                                className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-amber-600 dark:hover:bg-amber-500 text-white py-3.5 px-4 rounded-xl font-bold active:scale-[0.98] transition-all flex justify-center gap-2 items-center shadow-sm cursor-pointer text-sm sm:text-base"
                             >
-                                <span>Додати</span>
+                                <PlusIcon className="w-5 h-5 stroke-2" />
+                                <span>Додати до замовлення</span>
                                 <span className="opacity-50">•</span>
                                 <span>{modalPrice} ₴</span>
                             </button>
@@ -924,19 +1089,20 @@ function Menu({
                 document.body
             )}
 
-            {/* Конфігуратор комбо (Модальне вікно) */}
+            {/* Конфігуратор комбо */}
             {activeComboModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/70 backdrop-blur-xs p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setActiveComboModal(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full sm:max-w-md rounded-t-[2rem] rounded-b-none sm:rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col max-h-[90dvh] sm:max-h-[90vh] border-t sm:border border-slate-100 dark:border-slate-800 overscroll-contain" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setActiveComboModal(null)}>
+                    <div className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90dvh] sm:max-h-[90vh] border-t sm:border border-stone-200 dark:border-stone-800 overscroll-contain" onClick={e => e.stopPropagation()}>
                         {activeComboModal.imageUrl && (
-                            <div className="relative aspect-[16/9] w-full shrink-0 bg-slate-900">
+                            <div className="relative aspect-[16/9] w-full shrink-0 bg-stone-900">
                                 <img src={activeComboModal.imageUrl} alt={activeComboModal.title} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
-                                <span className="absolute top-4 left-4 z-10 px-3 py-1 bg-amber-500 text-white text-xs font-black uppercase tracking-wider rounded-full shadow-md">
-                                    🔥 Зібрати комбо
+                                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent"></div>
+                                <span className="absolute top-4 left-4 z-10 px-3 py-1 bg-amber-600 text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-md flex items-center gap-1">
+                                    <FireIcon className="w-3.5 h-3.5" />
+                                    <span>Зібрати комбо</span>
                                 </span>
                                 <button onClick={() => setActiveComboModal(null)} className="absolute top-4 right-4 w-9 h-9 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 hover:bg-black/75 transition-colors cursor-pointer">
-                                    ✕
+                                    <XMarkIcon className="w-5 h-5" />
                                 </button>
                             </div>
                         )}
@@ -945,22 +1111,25 @@ function Menu({
                             {!activeComboModal.imageUrl && (
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <span className="text-amber-500 font-black text-xs uppercase tracking-wider">🔥 Зібрати комбо</span>
-                                        <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight mt-0.5">
+                                        <span className="text-amber-600 font-bold text-xs uppercase tracking-wider flex items-center gap-1">
+                                            <FireIcon className="w-3.5 h-3.5" /> Зібрати комбо
+                                        </span>
+                                        <h2 className="text-xl font-bold text-stone-900 dark:text-white leading-tight mt-0.5">
                                             {activeComboModal.title}
                                         </h2>
                                     </div>
-                                    <button onClick={() => setActiveComboModal(null)} className="p-1 text-slate-400 hover:text-slate-600">✕</button>
+                                    <button onClick={() => setActiveComboModal(null)} className="p-1 text-stone-400 hover:text-stone-600">
+                                        <XMarkIcon className="w-5 h-5" />
+                                    </button>
                                 </div>
                             )}
 
                             {activeComboModal.shortDescription && (
-                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
                                     {activeComboModal.shortDescription}
                                 </p>
                             )}
 
-                            {/* Слоти вимог */}
                             {(() => {
                                 let config: any = null;
                                 try { config = JSON.parse(activeComboModal.comboConfig); } catch(e) {}
@@ -979,12 +1148,12 @@ function Menu({
                                             });
 
                                             return (
-                                                <div key={slot.id || sIdx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                                                <div key={slot.id || sIdx} className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 space-y-2.5">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
+                                                        <span className="font-bold text-xs text-stone-800 dark:text-stone-200">
                                                             {slot.name || `Позиція #${sIdx + 1}`} ({slot.quantity || 1} шт.)
                                                         </span>
-                                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Оберіть 1 варіант</span>
+                                                        <span className="text-[10px] text-stone-400 uppercase font-bold">Оберіть 1 варіант</span>
                                                     </div>
 
                                                     <div className="grid grid-cols-1 gap-2">
@@ -998,16 +1167,16 @@ function Menu({
                                                                     className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                                                                         isSelected
                                                                             ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/20'
-                                                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                                                                            : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700/60'
                                                                     }`}
                                                                 >
                                                                     <div className="flex items-center gap-2 min-w-0">
-                                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-300'}`}>
-                                                                            {isSelected && <span className="text-[10px]">✓</span>}
+                                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-amber-600 bg-amber-600 text-white' : 'border-stone-300'}`}>
+                                                                            {isSelected && <CheckIcon className="w-2.5 h-2.5 stroke-[3]" />}
                                                                         </div>
                                                                         <span className="font-bold text-xs truncate">{item.name}</span>
                                                                     </div>
-                                                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 ml-2">
+                                                                    <span className="text-xs font-semibold text-stone-500 dark:text-stone-400 shrink-0 ml-2">
                                                                         {item.price} ₴
                                                                     </span>
                                                                 </button>
@@ -1018,12 +1187,11 @@ function Menu({
                                             );
                                         })}
 
-                                        {/* Подарункова позиція */}
                                         {config.reward && config.reward.rewardType === 'FREE_ITEM' && (
                                             <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 space-y-2.5">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="font-extrabold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                                                        <span>🎁</span>
+                                                    <span className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                                        <GiftIcon className="w-4 h-4" />
                                                         <span>Ваш подарунок (0 ₴)</span>
                                                     </span>
                                                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Безкоштовно</span>
@@ -1047,17 +1215,17 @@ function Menu({
                                                                 className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                                                                     isSelected
                                                                         ? 'bg-emerald-100/90 dark:bg-emerald-900/60 border-emerald-500 text-emerald-900 dark:text-emerald-100 ring-2 ring-emerald-500/20'
-                                                                        : 'bg-white dark:bg-slate-800 border-emerald-200/60 dark:border-emerald-800/60 text-slate-700 dark:text-slate-200'
+                                                                        : 'bg-white dark:bg-stone-800 border-emerald-200/60 dark:border-emerald-800/60 text-stone-700 dark:text-stone-200'
                                                                 }`}
                                                             >
                                                                 <div className="flex items-center gap-2 min-w-0">
-                                                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'}`}>
-                                                                        {isSelected && <span className="text-[10px]">✓</span>}
+                                                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-stone-300'}`}>
+                                                                        {isSelected && <CheckIcon className="w-2.5 h-2.5 stroke-[3]" />}
                                                                     </div>
                                                                     <span className="font-bold text-xs truncate">{item.name}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                                                    <span className="text-xs line-through text-slate-400">{item.price} ₴</span>
+                                                                    <span className="text-xs line-through text-stone-400">{item.price} ₴</span>
                                                                     <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">0 ₴</span>
                                                                 </div>
                                                             </button>
@@ -1071,14 +1239,13 @@ function Menu({
                             })()}
                         </div>
 
-                        {/* Кнопка додавання зібраного комбо в кошик */}
-                        <div className="p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+                        <div className="p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] border-t border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 shrink-0">
                             <button
                                 onClick={addComboToCart}
-                                className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                                className="w-full py-3.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <SparklesIcon className="w-5 h-5 stroke-2" />
-                                <span>Додати все комбо до кошика</span>
+                                <span>Додати комбо до замовлення</span>
                             </button>
                         </div>
                     </div>
@@ -1086,11 +1253,11 @@ function Menu({
                 document.body
             )}
 
-            {/* Рендер категорії: якщо '🔥 Комбо' - показуємо картки комбо-наборів */}
-            {activeCategory === '🔥 Комбо' ? (
+            {/* Рендер категорії комбо або сітки страв */}
+            {activeCategory === 'COMBO' ? (
                 <div className="space-y-4">
                     {comboPromotions.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800">
+                        <div className="text-center py-12 text-stone-400 bg-white dark:bg-stone-900 rounded-2xl p-6 border border-stone-200/80 dark:border-stone-800">
                             Наразі немає активних комбо-наборів
                         </div>
                     ) : (
@@ -1103,14 +1270,14 @@ function Menu({
                             return (
                                 <div
                                     key={combo.id}
-                                    className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs space-y-4 overflow-hidden relative"
+                                    className="bg-white dark:bg-stone-900 rounded-2xl p-5 border border-stone-200/80 dark:border-stone-800 shadow-xs space-y-4 overflow-hidden relative"
                                 >
                                     {combo.imageUrl && (
-                                        <div className="aspect-[16/9] -mx-5 -mt-5 mb-4 relative overflow-hidden bg-slate-900">
+                                        <div className="aspect-[16/9] -mx-5 -mt-5 mb-4 relative overflow-hidden bg-stone-900">
                                             <img src={combo.imageUrl} alt={combo.title} className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
-                                            <span className="absolute top-3 left-3 bg-amber-500 text-white font-black text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
-                                                🔥 Комбо набір
+                                            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent"></div>
+                                            <span className="absolute top-3 left-3 bg-amber-600 text-white font-bold text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                                <FireIcon className="w-3.5 h-3.5" /> Комбо-набір
                                             </span>
                                         </div>
                                     )}
@@ -1118,29 +1285,28 @@ function Menu({
                                     <div>
                                         <div className="flex items-center gap-2 mb-1.5">
                                             {!combo.imageUrl && (
-                                                <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full uppercase">
-                                                    🔥 Комбо
+                                                <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px] px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
+                                                    <FireIcon className="w-3 h-3" /> Комбо
                                                 </span>
                                             )}
                                             {combo.badgeText && (
-                                                <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full">
+                                                <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px] px-2.5 py-0.5 rounded-full">
                                                     {combo.badgeText}
                                                 </span>
                                             )}
                                         </div>
-                                        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white leading-tight">
+                                        <h3 className="font-bold text-lg text-stone-900 dark:text-white leading-tight">
                                             {combo.title}
                                         </h3>
                                         {combo.shortDescription && (
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                                            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
                                                 {combo.shortDescription}
                                             </p>
                                         )}
                                     </div>
 
-                                    {/* Формула комбо */}
-                                    <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/50 space-y-2">
-                                        <span className="text-[11px] font-black text-amber-800 dark:text-amber-300 block uppercase tracking-wider">
+                                    <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 space-y-2">
+                                        <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300 block uppercase tracking-wider">
                                             Склад комбо-пропозиції:
                                         </span>
                                         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1150,23 +1316,34 @@ function Menu({
                                                     : `${s.quantity}× [${s.itemNames?.join(', ') || 'Обрана страва'}]`;
                                                 return (
                                                     <React.Fragment key={s.id || idx}>
-                                                        <span className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200 shadow-2xs border border-slate-200/80 dark:border-slate-700">
+                                                        <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-stone-800 font-semibold text-stone-800 dark:text-stone-200 border border-stone-200/80 dark:border-stone-700">
                                                             {label}
                                                         </span>
-                                                        {idx < slots.length - 1 && <span className="font-black text-amber-600">+</span>}
+                                                        {idx < slots.length - 1 && <span className="font-bold text-amber-600">+</span>}
                                                     </React.Fragment>
                                                 );
                                             })}
 
                                             {reward && (
                                                 <>
-                                                    <span className="font-black text-amber-600">➔</span>
-                                                    <span className="px-2.5 py-1 rounded-xl bg-emerald-500 text-white font-black shadow-xs">
-                                                        {reward.rewardType === 'FREE_ITEM'
-                                                            ? `🎁 ${reward.quantity || 1}× ${reward.selectionType === 'CATEGORY' ? reward.categoryName : reward.itemNames?.join(', ')} (0 ₴)`
-                                                            : reward.rewardType === 'FIXED_PRICE'
-                                                                ? `🏷️ Ціна: ${reward.fixedPrice} ₴`
-                                                                : `🏷️ Знижка -${reward.discountPercent}%`}
+                                                    <span className="font-bold text-amber-600">→</span>
+                                                    <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold inline-flex items-center gap-1">
+                                                        {reward.rewardType === 'FREE_ITEM' ? (
+                                                            <>
+                                                                <GiftIcon className="w-3.5 h-3.5" />
+                                                                <span>{reward.quantity || 1}× {reward.selectionType === 'CATEGORY' ? reward.categoryName : reward.itemNames?.join(', ')} (0 ₴)</span>
+                                                            </>
+                                                        ) : reward.rewardType === 'FIXED_PRICE' ? (
+                                                            <>
+                                                                <TagIcon className="w-3.5 h-3.5" />
+                                                                <span>Ціна: {reward.fixedPrice} ₴</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <TagIcon className="w-3.5 h-3.5" />
+                                                                <span>Знижка -{reward.discountPercent}%</span>
+                                                            </>
+                                                        )}
                                                     </span>
                                                 </>
                                             )}
@@ -1175,7 +1352,7 @@ function Menu({
 
                                     <button
                                         onClick={() => openComboModal(combo)}
-                                        className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-xs transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
                                     >
                                         <SparklesIcon className="w-4 h-4 stroke-2" />
                                         <span>Зібрати та замовити комбо</span>
@@ -1187,78 +1364,74 @@ function Menu({
                 </div>
             ) : (
                 /* Сітка звичайних страв меню */
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
                     {currentItems.map((i:any) => {
                         const qtyInCart = cart.filter(c => c.menuItemId === i.id).reduce((sum, c) => sum + c.quantity, 0);
                         
                         return (
-                        <div key={i.id} className="flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-xs border border-slate-100 dark:border-slate-800 hover:shadow-lg dark:hover:border-slate-700 transition-all group relative">
+                        <div key={i.id} className="flex flex-col bg-white dark:bg-stone-900 rounded-2xl overflow-hidden shadow-xs border border-stone-200/80 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700 transition-all group relative">
                             <button 
                                 onClick={(e) => handleLike(e, i.id)} 
-                                className="absolute top-2 right-2 z-10 h-8 px-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full flex items-center gap-1.5 shadow-xs text-xs font-bold text-slate-600 dark:text-slate-300 transition-transform active:scale-90 cursor-pointer"
+                                className="absolute top-2.5 right-2.5 z-10 h-7 px-2 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md rounded-full flex items-center gap-1 shadow-xs text-[11px] font-bold text-stone-600 dark:text-stone-300 transition-transform active:scale-90 cursor-pointer border border-stone-200/50 dark:border-stone-700/60"
                             >
-                                {likedItems.has(i.id) ? <HeartIcon className="w-4 h-4 text-pink-500" /> : <HeartIconOutline className="w-4 h-4 text-slate-400 dark:text-slate-400" />}
-                                <span className={likedItems.has(i.id) ? "text-pink-600 dark:text-pink-400" : "text-slate-500 dark:text-slate-400"}>{i.favoritesCount || 0}</span>
+                                {likedItems.has(i.id) ? <HeartIcon className="w-3.5 h-3.5 text-rose-500" /> : <HeartIconOutline className="w-3.5 h-3.5 text-stone-400" />}
+                                <span className={likedItems.has(i.id) ? "text-rose-600 dark:text-rose-400" : "text-stone-500 dark:text-stone-400"}>{i.favoritesCount || 0}</span>
                             </button>
                             
-                            <div className="w-full aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800 relative cursor-pointer" onClick={() => openModal(i)}>
+                            <div className="w-full aspect-[4/3] overflow-hidden bg-stone-100 dark:bg-stone-800 relative cursor-pointer" onClick={() => openModal(i)}>
                                 {i.imageUrl ? 
-                                    <img src={i.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    : <div className="w-full h-full"></div>
+                                    <img src={i.imageUrl} alt={i.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    : <div className="w-full h-full" />
                                 }
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
-                                <button className="absolute bottom-2 left-2 w-8 h-8 bg-black/40 backdrop-blur-md text-white rounded-full flex items-center justify-center pointer-events-none">
-                                    <InformationCircleIcon className="w-5 h-5" />
-                                </button>
+                                <span className="absolute bottom-2 left-2 w-7 h-7 bg-black/45 backdrop-blur-md text-white rounded-full flex items-center justify-center pointer-events-none">
+                                    <InformationCircleIcon className="w-4 h-4" />
+                                </span>
                             </div>
                             
-                            <div className="p-4 flex flex-col flex-1">
-                                <h3 className="font-semibold text-slate-900 dark:text-white leading-tight mb-1 text-sm cursor-pointer hover:underline" onClick={() => openModal(i)}>{i.name}</h3>
-                                <p className="text-slate-500 dark:text-slate-400 font-medium mb-4 flex-1 text-sm cursor-pointer" onClick={() => openModal(i)}>{i.price} ₴</p>
+                            <div className="p-3.5 flex flex-col flex-1">
+                                <h3 className="font-bold text-stone-900 dark:text-white leading-snug mb-1 text-sm line-clamp-2 min-h-[2.5rem] cursor-pointer hover:text-amber-600 dark:hover:text-amber-400 transition-colors" onClick={() => openModal(i)}>
+                                    {i.name}
+                                </h3>
+                                <p className="text-stone-900 dark:text-stone-100 font-extrabold mb-3 text-base cursor-pointer" onClick={() => openModal(i)}>
+                                    {i.price} <span className="text-xs font-semibold text-stone-500">₴</span>
+                                </p>
                                 
-                                {qtyInCart > 0 ? (
-                                    <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 shadow-inner h-11 px-4">
-                                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">В кошику:</span>
-                                        <span className="font-bold text-slate-900 dark:text-white text-center text-lg">{qtyInCart}</span>
-                                    </div>
-                                ) : (
-                                    <button onClick={() => quickAdd(i)} className="w-full bg-slate-50 dark:bg-slate-800/80 font-bold text-slate-700 dark:text-slate-200 h-11 rounded-2xl text-sm active:scale-95 transition-all ring-1 ring-slate-200 dark:ring-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
-                                        Додати
-                                    </button>
-                                )}
+                                <div className="mt-auto">
+                                    {qtyInCart > 0 ? (
+                                        <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/70 rounded-xl p-1 h-10">
+                                            <button
+                                                type="button"
+                                                onClick={() => decrementItemFromCard(i.id)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-100 shadow-xs active:scale-95 transition-transform cursor-pointer"
+                                                aria-label="Зменшити кількість"
+                                            >
+                                                <MinusIcon className="w-4 h-4 stroke-2" />
+                                            </button>
+                                            <span className="font-extrabold text-amber-900 dark:text-amber-300 text-sm">{qtyInCart}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => quickAdd(i)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-600 text-white shadow-xs active:scale-95 transition-transform cursor-pointer"
+                                                aria-label="Додати ще"
+                                            >
+                                                <PlusIcon className="w-4 h-4 stroke-2" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => quickAdd(i)}
+                                            className="w-full bg-stone-100 hover:bg-stone-900 hover:text-white dark:bg-stone-800 dark:hover:bg-amber-600 font-bold text-stone-800 dark:text-stone-100 h-10 rounded-xl text-xs sm:text-sm active:scale-95 transition-all border border-stone-200/80 dark:border-stone-700 cursor-pointer flex items-center justify-center gap-1.5"
+                                        >
+                                            <PlusIcon className="w-4 h-4 stroke-2" />
+                                            <span>Додати</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )})}
-                </div>
-            )}
-            
-            {/* Відображення детального кошика перед кнопкою "Оформити" */}
-            {cart.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs mt-8">
-                    <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-lg">Ваш кошик</h3>
-                    <div className="space-y-4">
-                        {cart.map(c => {
-                            const optKeys = Object.keys(c.options);
-                            return (
-                                <div key={c.cartId} className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800/80 pb-3 last:border-0 last:pb-0">
-                                    <div className="flex-1">
-                                        <div className="font-medium text-slate-900 dark:text-white">{c.name}</div>
-                                        {optKeys.length > 0 && (
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
-                                                {optKeys.map(k => c.options[k]).flat().filter(Boolean).join(', ')}
-                                            </div>
-                                        )}
-                                        <div className="text-slate-900 dark:text-white font-bold text-sm mt-1">{c.price} ₴</div>
-                                    </div>
-                                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-1 shadow-inner shrink-0">
-                                        <button onClick={() => updateCartQty(c.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all cursor-pointer">−</button>
-                                        <span className="font-bold text-slate-900 dark:text-white w-4 text-center">{c.quantity}</span>
-                                        <button onClick={() => updateCartQty(c.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-xs font-bold text-slate-600 dark:text-slate-200 active:scale-95 transition-all cursor-pointer">+</button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
                 </div>
             )}
         </div>
@@ -1278,20 +1451,19 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
     const lng = info?.lng ? Number(info.lng) : 30.5234;
 
     return (
-        <footer className="mt-16 space-y-6 pt-8 border-t border-slate-200/70 dark:border-slate-800/80 px-6 pb-6 text-slate-600 dark:text-slate-400 transition-colors">
-            {/* Блок перемикача теми (Опція 1: окремий перемикач) */}
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Тема інтерфейсу
+        <footer className="mt-8 space-y-5 pt-6 border-t border-stone-200/80 dark:border-stone-800/80 px-5 sm:px-6 pb-8 text-stone-600 dark:text-stone-400 transition-colors">
+            <div className="bg-white dark:bg-stone-900 rounded-xl p-3 border border-stone-200/80 dark:border-stone-800 flex items-center justify-between shadow-2xs">
+                <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                    Тема оформлення
                 </span>
-                <div className="inline-flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
+                <div className="inline-flex rounded-lg p-0.5 bg-stone-100 dark:bg-stone-800 border border-stone-200/60 dark:border-stone-700">
                     <button
                         type="button"
                         onClick={theme === 'dark' ? toggle : undefined}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
                             theme === 'light'
                                 ? 'bg-white text-amber-600 shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                                : 'text-stone-500 hover:text-stone-800 dark:text-stone-400'
                         }`}
                         aria-pressed={theme === 'light'}
                     >
@@ -1301,10 +1473,10 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
                     <button
                         type="button"
                         onClick={theme === 'light' ? toggle : undefined}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
                             theme === 'dark'
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
+                                ? 'bg-stone-900 text-amber-400 shadow-xs'
+                                : 'text-stone-500 hover:text-stone-800 dark:text-stone-400'
                         }`}
                         aria-pressed={theme === 'dark'}
                     >
@@ -1314,56 +1486,59 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{name}</h3>
-                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+            <div className="space-y-1.5">
+                <h3 className="text-lg font-bold tracking-tight text-stone-900 dark:text-white">{name}</h3>
+                <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">{description}</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5 text-xs">
+            <div className="grid grid-cols-1 gap-2 text-xs">
                 {wifiPass && (
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-                        <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
-                            <WifiIcon className="w-4 h-4 text-indigo-500" />
-                            <span className="font-medium">Wi-Fi: <strong className="text-slate-900 dark:text-white">{wifiSsid}</strong></span>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-800">
+                        <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
+                            <WifiIcon className="w-4 h-4 text-amber-600 dark:text-amber-500" />
+                            <span className="font-medium">Wi-Fi: <strong className="text-stone-900 dark:text-white">{wifiSsid}</strong></span>
                         </div>
-                        <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">{wifiPass}</span>
+                        <span className="font-mono text-[11px] font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-md">{wifiPass}</span>
                     </div>
                 )}
                 {hours && (
-                    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-slate-700 dark:text-slate-300">
-                        <ClockIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-800 text-stone-700 dark:text-stone-300">
+                        <ClockIcon className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0" />
                         <span>{hours}</span>
                     </div>
                 )}
                 {address && (
-                    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-slate-700 dark:text-slate-300">
-                        <MapPinIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-800 text-stone-700 dark:text-stone-300">
+                        <MapPinIcon className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0" />
                         <span>{address}</span>
                     </div>
                 )}
                 {phone && (
-                    <a href={`tel:${phone.replace(/\s+/g, '')}`} className="flex items-center gap-2.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs text-slate-700 dark:text-slate-300 hover:text-indigo-600 transition-colors">
-                        <PhoneIcon className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <a href={`tel:${phone.replace(/\s+/g, '')}`} className="flex items-center gap-2.5 p-3 rounded-xl bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-800 text-stone-700 dark:text-stone-300 hover:text-amber-600 transition-colors">
+                        <PhoneIcon className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0" />
                         <span className="font-semibold">{phone}</span>
                     </a>
                 )}
                 {instagram && (
-                    <a href={instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-amber-500/10 border border-pink-200/60 dark:border-pink-900/40 text-pink-700 dark:text-pink-300 font-semibold hover:opacity-90 transition-opacity">
-                        <span>📸 Наш Instagram</span>
-                        <span className="text-xs">@{instagram.replace(/^.*instagram\.com\//, '').replace('@', '').replace(/\/$/, '')} →</span>
+                    <a href={instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-800 text-stone-800 dark:text-stone-200 font-semibold hover:border-amber-500 transition-colors">
+                        <span className="flex items-center gap-2">
+                            <ArrowTopRightOnSquareIcon className="w-4 h-4 text-amber-600 dark:text-amber-500" />
+                            <span>Instagram закладу</span>
+                        </span>
+                        <span className="text-xs text-amber-600 dark:text-amber-400">@{instagram.replace(/^.*instagram\.com\//, '').replace('@', '').replace(/\/$/, '')} →</span>
                     </a>
                 )}
             </div>
 
             {info?.lat && info?.lng && (
-                <div className="space-y-2 pt-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Як нас знайти</span>
+                <div className="space-y-2 pt-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Розташування</span>
                     <LeafletMap lat={lat} lng={lng} label={name} />
                 </div>
             )}
 
-            <div className="pt-4 text-center text-[10px] text-slate-400 dark:text-slate-600">
-                © {new Date().getFullYear()} {name}. Працює на RestoFlow.
+            <div className="pt-3 text-center text-[11px] text-stone-400 dark:text-stone-600">
+                © {new Date().getFullYear()} {name}
             </div>
         </footer>
     );
