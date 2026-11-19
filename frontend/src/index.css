@@ -6,6 +6,15 @@
   body {
     @apply antialiased selection:bg-amber-500/20 selection:text-amber-900 dark:selection:text-amber-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* apple-design.md §15 — оптичний кегль (вісь opsz у Inter 4) */
+    font-optical-sizing: auto;
+  }
+
+  /* apple-design.md §1 — прибираємо затримку тапу та сірий системний хайлайт:
+     власний відгук на натискання задано нижче */
+  button, a[href], [role="button"], [role="switch"], [role="tab"], label, summary {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -28,15 +37,37 @@
   .scale-102 { transform: scale(1.02); }
   .active\:scale-98:active { transform: scale(0.98); }
   .-ml-4\.5 { margin-left: -1.125rem; }
-  .animate-slideUpFade { animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes wiggle {
   0%, 100% { transform: rotate(-8deg); }
   50% { transform: rotate(8deg); }
+}
+
+/* apple-design.md §1 / §10 — відгук з'являється на pointer-down (:active),
+   а дія (onClick) комітиться на pointer-up: так зберігаються скасування
+   «відведенням пальця», клавіатура та скрол списків без випадкових тапів.
+   Кнопки, що вже мають власний active:-стан, або data-press="off" — не чіпаємо. */
+@layer base {
+  :where(button, [role="button"], [role="tab"], [role="switch"]) {
+    transition: scale 160ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  :where(button, [role="button"], [role="tab"], [role="switch"]):not(:disabled):not([aria-disabled="true"]):not([class*="active:"]):not([data-press="off"]):active {
+    scale: 0.97;
+    transition-duration: 0ms;
+  }
+  /* Клікабельні не-кнопки (картки, назви страв): iOS-подібне підсвічування */
+  :where(div, li, tr, p, h3, img, span)[class~="cursor-pointer"]:not([class*="active:"]):not([data-press="off"]):active {
+    opacity: 0.7;
+  }
+}
+
+/* apple-design.md §14 — reduced motion: не «нуль анімацій», а м'які кросфейди */
+@keyframes ui-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slideUpFade { animation: ui-fade 200ms ease-out both !important; }
+  .animate-wiggle, .animate-ping, .animate-bounce { animation: none !important; }
+  button:active, [role="button"]:active { scale: none !important; }
+  * { scroll-behavior: auto !important; }
 }

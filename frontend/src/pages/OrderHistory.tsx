@@ -157,7 +157,7 @@ export default function OrderHistory({ role }: { role: string }) {
             {/* Заголовок сторінки */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+                    <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
                         <ClockIcon className="w-8 h-8 text-indigo-600 dark:text-indigo-400 stroke-2" />
                         Історія замовлень
                     </h1>
@@ -178,7 +178,7 @@ export default function OrderHistory({ role }: { role: string }) {
             {/* Метрики вибірки */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Знайдено чеків
                     </div>
                     <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
@@ -187,7 +187,7 @@ export default function OrderHistory({ role }: { role: string }) {
                 </div>
 
                 <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Сума на сторінці
                     </div>
                     <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
@@ -196,7 +196,7 @@ export default function OrderHistory({ role }: { role: string }) {
                 </div>
 
                 <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Середній чек
                     </div>
                     <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
@@ -205,7 +205,7 @@ export default function OrderHistory({ role }: { role: string }) {
                 </div>
 
                 <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Поточний фільтр
                     </div>
                     <div className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
@@ -374,7 +374,7 @@ export default function OrderHistory({ role }: { role: string }) {
                                             <td className="p-4 font-black text-slate-900 dark:text-white">
                                                 <div>{order.total} ₴</div>
                                                 {order.discountAmount && order.discountAmount > 0 ? (
-                                                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
+                                                    <div className="text-3xs text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
                                                         знижка -{order.discountAmount} ₴
                                                     </div>
                                                 ) : null}
@@ -441,7 +441,7 @@ export default function OrderHistory({ role }: { role: string }) {
 
             {/* Модальне вікно перегляду детального електронного чека */}
             {selectedOrder && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
                         {/* Шапка модалки */}
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">

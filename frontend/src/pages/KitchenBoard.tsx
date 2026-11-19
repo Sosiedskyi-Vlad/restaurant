@@ -227,7 +227,7 @@ export default function KitchenBoard({ role }: { role: string }) {
             <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-3">
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
                             Дошка замовлень (KDS)
                         </h1>
                         {delayedCount > 0 && (
@@ -283,13 +283,13 @@ export default function KitchenBoard({ role }: { role: string }) {
                         <ClockIcon className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                        <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
                             Сер. час видачі
                         </div>
                         <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight">
                             {metrics?.avgCookingMinutesToday != null ? `${metrics.avgCookingMinutesToday} хв` : '—'}
                         </div>
-                        <div className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 truncate">
+                        <div className="text-2xs font-medium text-emerald-600 dark:text-emerald-400 truncate">
                             Ціль: &lt; 15 хв
                         </div>
                     </div>
@@ -300,13 +300,13 @@ export default function KitchenBoard({ role }: { role: string }) {
                         <CheckCircleIcon className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                        <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
                             Видано за зміну
                         </div>
                         <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight">
                             {metrics?.completedToday ?? 0} <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">чеків</span>
                         </div>
-                        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                        <div className="text-2xs font-medium text-slate-500 dark:text-slate-400 truncate">
                             {metrics?.totalDishesToday ?? 0} страв приготовано
                         </div>
                     </div>
@@ -317,13 +317,13 @@ export default function KitchenBoard({ role }: { role: string }) {
                         <FireIcon className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                        <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
                             Зараз в роботі
                         </div>
                         <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight">
                             {orders.length} <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">активних</span>
                         </div>
-                        <div className="text-[11px] font-medium text-amber-600 dark:text-amber-400 truncate">
+                        <div className="text-2xs font-medium text-amber-600 dark:text-amber-400 truncate">
                             {orders.filter(o => o.status === 'PREPARING').length} готуються • {orders.filter(o => o.status === 'READY').length} готові
                         </div>
                     </div>
@@ -346,7 +346,7 @@ export default function KitchenBoard({ role }: { role: string }) {
                         )}
                     </div>
                     <div className="min-w-0">
-                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                        <div className="text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
                             Затримки (&gt; 20 хв)
                         </div>
                         <div className={`text-xl sm:text-2xl font-black leading-tight ${
@@ -354,7 +354,7 @@ export default function KitchenBoard({ role }: { role: string }) {
                         }`}>
                             {delayedCount} <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">чеків</span>
                         </div>
-                        <div className={`text-[11px] font-medium truncate ${
+                        <div className={`text-2xs font-medium truncate ${
                             delayedCount > 0 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-emerald-600 dark:text-emerald-400'
                         }`}>
                             {delayedCount > 0 ? 'Потребують уваги!' : 'Всі вчасні'}
@@ -484,8 +484,8 @@ export default function KitchenBoard({ role }: { role: string }) {
             </div>
 
             {showRecentClosed && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-slideUpFade">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+                    <div className="animate-slideUpFade bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]">
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/40">
                             <div className="flex items-center gap-2.5">
                                 <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
@@ -606,15 +606,15 @@ function OrderCard({ order, now, stationFilter, onToggleItem, onPrev, onNext, bt
             {/* Рядок 1: Стіл, статус оплати та живий SLA таймер */}
             <div className="flex justify-between items-center mb-2.5">
                 <div className="flex items-center gap-2.5">
-                    <span className="font-black text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
+                    <span className="font-black text-xl sm:text-2xl text-slate-900 dark:text-white">
                         Стіл {order.tableNumber}
                     </span>
                     {order.paid ? (
-                        <span className="bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/30 uppercase tracking-wide">
+                        <span className="bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-2xs font-bold px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/30 uppercase tracking-wide">
                             Оплачено
                         </span>
                     ) : (
-                        <span className="bg-slate-100 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 text-[11px] font-medium px-2 py-0.5 rounded-md">
+                        <span className="bg-slate-100 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 text-2xs font-medium px-2 py-0.5 rounded-md">
                             Не сплачено
                         </span>
                     )}
@@ -635,15 +635,15 @@ function OrderCard({ order, now, stationFilter, onToggleItem, onPrev, onNext, bt
 
                 <div className="flex items-center gap-1.5">
                     {hasKitchenItems && hasBarItems ? (
-                        <span className="px-2 py-0.5 rounded-md bg-stone-100 dark:bg-slate-700 text-stone-700 dark:text-slate-300 font-semibold text-[11px] inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md bg-stone-100 dark:bg-slate-700 text-stone-700 dark:text-slate-300 font-semibold text-2xs inline-flex items-center gap-1">
                             <Utensils className="w-3 h-3" /> Кухня + Бар
                         </span>
                     ) : hasBarItems ? (
-                        <span className="px-2 py-0.5 rounded-md bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-semibold text-[11px] inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-semibold text-2xs inline-flex items-center gap-1">
                             <Coffee className="w-3 h-3" /> Бар
                         </span>
                     ) : (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-semibold text-[11px] inline-flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-semibold text-2xs inline-flex items-center gap-1">
                             <ChefHat className="w-3 h-3" /> Кухня
                         </span>
                     )}
@@ -659,7 +659,7 @@ function OrderCard({ order, now, stationFilter, onToggleItem, onPrev, onNext, bt
                             {completedActiveCount} з {totalActiveCount}
                         </span>
                     </span>
-                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                    <span className="text-2xs font-bold text-slate-400 dark:text-slate-500">
                         {progressPercent}%
                     </span>
                 </div>
@@ -742,7 +742,7 @@ function OrderCard({ order, now, stationFilter, onToggleItem, onPrev, onNext, bt
                                         )}
                                         
                                         {isMuted && (
-                                            <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium italic mt-1">
+                                            <div className="text-2xs text-slate-400 dark:text-slate-500 font-medium italic mt-1">
                                                 {isBar ? 'Готується на барі' : 'Готується на кухні'}
                                             </div>
                                         )}
@@ -751,12 +751,12 @@ function OrderCard({ order, now, stationFilter, onToggleItem, onPrev, onNext, bt
 
                                 <div className="shrink-0 flex flex-col items-end gap-1">
                                     {i.status === 'READY' && (
-                                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700">
+                                        <span className="text-2xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700">
                                             Готово
                                         </span>
                                     )}
                                     {i.status === 'SERVED' && (
-                                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                                        <span className="text-2xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
                                             Подано
                                         </span>
                                     )}

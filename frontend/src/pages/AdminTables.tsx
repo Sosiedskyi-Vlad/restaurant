@@ -700,7 +700,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
             {/* Persistent Control Bar */}
             <div className="min-h-[64px] flex items-center">
                 {selectedTableData ? (
-                    <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/80 animate-in fade-in duration-150">
+                    <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/80 animate-fadeIn">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center text-base shadow-sm">
                                 {selectedTableData.number}
@@ -772,7 +772,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                         </div>
                     </div>
                 ) : selectedElementData ? (
-                    <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/80 animate-in fade-in duration-150">
+                    <div className="w-full flex flex-wrap items-center justify-between gap-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/80 animate-fadeIn">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center">
                                 {getElementIcon(selectedElementData.type, 'w-5 h-5')}
@@ -840,7 +840,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                             <MousePointerClick className="w-4 h-4 text-amber-600 shrink-0" />
                             <span><b>Налаштування:</b> Клікніть на будь-який стіл, стіну чи зріз площі на плані, щоб змінити розміри, форму чи перемістити.</span>
                         </span>
-                        <span className="text-[11px] opacity-75 hidden sm:inline">
+                        <span className="text-2xs opacity-75 hidden sm:inline">
                             Перетягуйте мишкою або пальцем
                         </span>
                     </div>
@@ -897,7 +897,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                 </svg>
 
                 {/* Zone Label Watermark */}
-                <div className="absolute top-4 left-6 text-stone-700 text-2xl font-black tracking-widest uppercase pointer-events-none select-none">
+                <div className="absolute top-4 left-6 text-stone-700 text-2xl font-black tracking-[0.02em] uppercase pointer-events-none select-none">
                     {ZONES.find(z => z.id === currentZone)?.name}
                 </div>
 
@@ -916,7 +916,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                     setSelectedElementId(el.id);
                                     setSelectedTableId(null);
                                 }}
-                                className={`absolute border-2 border-dashed rounded-2xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-all ${
+                                className={`absolute border-2 border-dashed rounded-2xl flex items-center justify-center cursor-grab active:cursor-grabbing transition-[border-color,background-color,box-shadow] ${
                                     isSelected 
                                         ? 'border-amber-400 bg-amber-500/15 ring-4 ring-amber-400/40 z-30 scale-102' 
                                         : 'border-stone-500/50 bg-stone-950/70 hover:border-amber-400/60 z-15'
@@ -931,7 +931,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                 }}
                                 title="Зріз площі (Перетягніть мишкою або змініть розміри в панелі)"
                             >
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-xs text-amber-300 font-bold text-[11px] select-none pointer-events-none border border-amber-500/30">
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-xs text-amber-300 font-bold text-2xs select-none pointer-events-none border border-amber-500/30">
                                     <Scissors className="w-3.5 h-3.5" />
                                     <span>Зріз {Math.round(el.width)}×{Math.round(el.height)}%</span>
                                 </div>
@@ -990,7 +990,7 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                                     style={{ transform: `rotate(${-rot}deg)` }}
                                 >
                                     {iconNode}
-                                    <span className="font-bold text-[11px] select-none tracking-wide truncate opacity-90">
+                                    <span className="font-bold text-2xs select-none tracking-wide truncate opacity-90">
                                         {el.name}
                                     </span>
                                 </div>
@@ -1038,19 +1038,19 @@ function TableMapEditor({ tables, reloadTables }: { tables: any[], reloadTables:
                             title={`Стіл №${t.number} (${seats} місць)`}
                         >
                             <div className="w-full flex items-center justify-between px-0.5 leading-none select-none">
-                                <span className="text-sm sm:text-base md:text-lg font-black tracking-tight">
+                                <span className="text-sm sm:text-base md:text-lg font-black">
                                     №{t.number}
                                 </span>
-                                <span className="flex items-center gap-0.5 text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded-md bg-black/30 text-stone-100">
+                                <span className="flex items-center gap-0.5 text-3xs sm:text-xs font-bold px-1.5 py-0.5 rounded-md bg-black/30 text-stone-100">
                                     <UsersIcon className="w-3 h-3" /> {seats}
                                 </span>
                             </div>
 
-                            <div className="text-[10px] sm:text-[11px] font-bold text-amber-200 select-none my-auto">
+                            <div className="text-3xs sm:text-2xs font-bold text-amber-200 select-none my-auto">
                                 {shape === 'RECTANGLE' ? (isVertical ? 'Вертикальний' : 'Горизонтальний') : 'Квадрат'}
                             </div>
 
-                            <div className="text-[9px] text-stone-300 font-mono font-medium select-none">
+                            <div className="text-4xs text-stone-300 font-mono font-medium select-none">
                                 {Math.round(pos.x)}%, {Math.round(pos.y)}%
                             </div>
                         </div>

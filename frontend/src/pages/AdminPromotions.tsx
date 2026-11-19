@@ -500,11 +500,11 @@ export default function AdminPromotions() {
     };
 
     return (
-        <div className="p-6 sm:p-8 max-w-7xl space-y-8 animate-in fade-in duration-300">
+        <div className="p-6 sm:p-8 max-w-7xl space-y-8 animate-fadeIn">
             {/* Заголовок та кнопка створення */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
                         <span className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
                             <MegaphoneIcon className="w-6 h-6 stroke-2" />
                         </span>
@@ -608,7 +608,7 @@ export default function AdminPromotions() {
                                                 <PhotoIcon className="w-5 h-5 text-white stroke-2" />
                                             </div>
                                             <span>Змінити постер</span>
-                                            <span className="text-[10px] text-slate-300 font-normal">обрати з комп'ютера</span>
+                                            <span className="text-3xs text-slate-300 font-normal">обрати з комп'ютера</span>
                                             <input
                                                 type="file"
                                                 accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -619,7 +619,7 @@ export default function AdminPromotions() {
 
                                         {/* Бейдж промо */}
                                         {p.badgeText && (
-                                            <div className="absolute top-3 left-3 bg-slate-950/70 backdrop-blur-md text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md z-20 pointer-events-none">
+                                            <div className="absolute top-3 left-3 bg-slate-950/70 backdrop-blur-md text-white text-2xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md z-20 pointer-events-none">
                                                 {p.badgeText}
                                             </div>
                                         )}
@@ -627,20 +627,20 @@ export default function AdminPromotions() {
                                         {/* Тип промо */}
                                         <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20 pointer-events-none">
                                             {p.showInSlider === false && (
-                                                <span className="bg-slate-950/80 backdrop-blur-md text-amber-300 border border-amber-500/30 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wider shadow-md">
+                                                <span className="bg-slate-950/80 backdrop-blur-md text-amber-300 border border-amber-500/30 text-3xs font-black px-2 py-1 rounded-full uppercase tracking-wider shadow-md">
                                                     🚫 Без банеру
                                                 </span>
                                             )}
                                             {p.promoType === 'COMBO' ? (
-                                                <span className="bg-amber-500/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
+                                                <span className="bg-amber-500/90 backdrop-blur-md text-white text-3xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
                                                     🔥 Комбо
                                                 </span>
                                             ) : p.discountPercent && p.discountPercent > 0 ? (
-                                                <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
+                                                <span className="bg-emerald-600/90 backdrop-blur-md text-white text-3xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
                                                     🏷️ -{p.discountPercent}%
                                                 </span>
                                             ) : (
-                                                <span className="bg-indigo-600/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                                                <span className="bg-indigo-600/90 backdrop-blur-md text-white text-3xs font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow-md">
                                                     ℹ️ Інфо
                                                 </span>
                                             )}
@@ -662,7 +662,7 @@ export default function AdminPromotions() {
 
                                         {/* Якщо комбо - показуємо формулу */}
                                         {parsedCombo && (
-                                            <div className="p-2.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-[11px] text-amber-900 dark:text-amber-200">
+                                            <div className="p-2.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-2xs text-amber-900 dark:text-amber-200">
                                                 <div className="font-bold mb-1 flex items-center gap-1 text-amber-700 dark:text-amber-400">
                                                     <span>🔥 Склад комбо:</span>
                                                 </div>
@@ -673,7 +673,7 @@ export default function AdminPromotions() {
                                         )}
 
                                         {/* Статистика */}
-                                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center justify-between text-2xs text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 px-3 py-2 rounded-xl border border-slate-100 dark:border-slate-800">
                                             <span>Застосовано: <strong className="text-slate-800 dark:text-slate-200">{p.usageCount || 0}</strong> р.</span>
                                             <span>Знижка: <strong className="text-emerald-600 dark:text-emerald-400">{Number(p.totalDiscountGiven || 0).toLocaleString()} ₴</strong></span>
                                         </div>
@@ -735,7 +735,7 @@ export default function AdminPromotions() {
 
             {/* Модальне вікно Створення / Редагування */}
             {modalOpen && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh]">
                         {/* 1. Шапка модалки (завжди видима, shrink-0) */}
                         <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/80 dark:bg-slate-950/50 shrink-0">
@@ -775,7 +775,7 @@ export default function AdminPromotions() {
                                         <TagIcon className={`w-5 h-5 mb-1.5 ${promoType === 'ORDER_PERCENT' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
                                         <div>
                                             <div className="font-bold text-xs text-slate-900 dark:text-white">Знижка % на чек</div>
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Наприклад -15% ДН</div>
+                                            <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">Наприклад -15% ДН</div>
                                         </div>
                                     </button>
 
@@ -791,7 +791,7 @@ export default function AdminPromotions() {
                                         <CubeIcon className={`w-5 h-5 mb-1.5 ${promoType === 'COMBO' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`} />
                                         <div>
                                             <div className="font-bold text-xs text-slate-900 dark:text-white">🔥 Комбо-набір</div>
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Піца + Напій = Десерт</div>
+                                            <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">Піца + Напій = Десерт</div>
                                         </div>
                                     </button>
 
@@ -807,7 +807,7 @@ export default function AdminPromotions() {
                                         <InformationCircleIcon className={`w-5 h-5 mb-1.5 ${promoType === 'INFO' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
                                         <div>
                                             <div className="font-bold text-xs text-slate-900 dark:text-white">Інформаційна</div>
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Банер / Новина</div>
+                                            <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">Банер / Новина</div>
                                         </div>
                                     </button>
                                 </div>
@@ -894,7 +894,7 @@ export default function AdminPromotions() {
 
                             {/* КОНСТРУКТОР КОМБО (якщо promoType === 'COMBO') */}
                             {promoType === 'COMBO' && (
-                                <div className="space-y-6 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-200">
+                                <div className="space-y-6 pt-2 border-t border-slate-200 dark:border-slate-800 animate-fadeIn">
                                     {/* БЛОК А: ВИМОГИ ДО КОШИКА */}
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
@@ -1077,7 +1077,7 @@ export default function AdminPromotions() {
                                                                                 />
                                                                                 <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
                                                                                 {item.categoryName && (
-                                                                                    <span className="text-[10px] text-slate-400">({item.categoryName})</span>
+                                                                                    <span className="text-3xs text-slate-400">({item.categoryName})</span>
                                                                                 )}
                                                                             </div>
                                                                             <span className="text-slate-500 font-bold ml-2 shrink-0">{item.price} ₴</span>
@@ -1326,7 +1326,7 @@ export default function AdminPromotions() {
                                         {/* Прев'ю формули */}
                                         <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
                                             <span className="font-bold text-slate-900 dark:text-white block mb-1">✨ Прев'ю формули акції:</span>
-                                            <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400">
+                                            <span className="font-mono text-2xs text-indigo-600 dark:text-indigo-400">
                                                 {getFormulaSummary(comboSlots, comboReward)}
                                             </span>
                                         </div>
@@ -1376,7 +1376,7 @@ export default function AdminPromotions() {
                                                 type="text"
                                                 value={imageUrl}
                                                 onChange={(e) => setImageUrl(e.target.value)}
-                                                className="flex-1 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-[11px] truncate focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                className="flex-1 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-mono text-2xs truncate focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                                 placeholder="URL або шлях до файлу"
                                             />
                                         </div>
@@ -1388,7 +1388,7 @@ export default function AdminPromotions() {
                                             <p className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
                                                 Завантажте фотографію для постера
                                             </p>
-                                            <p className="text-[11px] text-slate-400 mb-3">
+                                            <p className="text-2xs text-slate-400 mb-3">
                                                 Підтримуються формати JPG, PNG, WEBP (рекомендовано 16:9)
                                             </p>
                                             <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer shadow-md shadow-indigo-600/20 active:scale-95 transition-all">
@@ -1464,7 +1464,7 @@ export default function AdminPromotions() {
                                             <InformationCircleIcon className={`w-5 h-5 mb-2 ${actionType === 'NONE' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
                                             <div>
                                                 <div className="font-bold text-xs text-slate-900 dark:text-white">Інформаційна</div>
-                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Лише правила</div>
+                                                <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">Лише правила</div>
                                             </div>
                                         </button>
 
@@ -1480,7 +1480,7 @@ export default function AdminPromotions() {
                                             <ShoppingBagIcon className={`w-5 h-5 mb-2 ${actionType === 'MENU_ITEM' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
                                             <div>
                                                 <div className="font-bold text-xs text-slate-900 dark:text-white">Страва з меню</div>
-                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Кнопка «Замовити»</div>
+                                                <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">Кнопка «Замовити»</div>
                                             </div>
                                         </button>
 
@@ -1496,14 +1496,14 @@ export default function AdminPromotions() {
                                             <BellAlertIcon className={`w-5 h-5 mb-2 ${actionType === 'CALL_WAITER' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`} />
                                             <div>
                                                 <div className="font-bold text-xs text-slate-900 dark:text-white">Виклик офіціанта</div>
-                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Повідомити стіл</div>
+                                                <div className="text-2xs text-slate-500 dark:text-slate-400 mt-0.5">Повідомити стіл</div>
                                             </div>
                                         </button>
                                     </div>
 
                                     {/* Інтерактивний вибір страви */}
                                     {actionType === 'MENU_ITEM' && (
-                                        <div className="space-y-2 pt-1 animate-in fade-in duration-200">
+                                        <div className="space-y-2 pt-1 animate-fadeIn">
                                             <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
                                                 Прив'язана страва з меню *
                                             </label>
@@ -1527,7 +1527,7 @@ export default function AdminPromotions() {
                                                                     {selectedDish.price} ₴
                                                                 </span>
                                                                 {selectedDish.categoryName && (
-                                                                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
+                                                                    <span className="text-3xs px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
                                                                         {selectedDish.categoryName}
                                                                     </span>
                                                                 )}
@@ -1611,7 +1611,7 @@ export default function AdminPromotions() {
                                                                                     {item.name}
                                                                                 </div>
                                                                                 {item.categoryName && (
-                                                                                    <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                                                                                    <div className="text-3xs text-slate-400 truncate mt-0.5">
                                                                                         {item.categoryName}
                                                                                     </div>
                                                                                 )}
@@ -1668,12 +1668,12 @@ export default function AdminPromotions() {
                                         role="switch"
                                         aria-checked={active}
                                         onClick={(e) => { e.stopPropagation(); setActive(!active); }}
-                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out focus:outline-none ${
                                             active ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'
                                         }`}
                                     >
                                         <span
-                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ease-spring ${
                                                 active ? 'translate-x-5' : 'translate-x-0'
                                             }`}
                                         />
@@ -1697,12 +1697,12 @@ export default function AdminPromotions() {
                                         role="switch"
                                         aria-checked={showInSlider}
                                         onClick={(e) => { e.stopPropagation(); setShowInSlider(!showInSlider); }}
-                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out focus:outline-none ${
                                             showInSlider ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
                                         }`}
                                     >
                                         <span
-                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ease-spring ${
                                                 showInSlider ? 'translate-x-5' : 'translate-x-0'
                                             }`}
                                         />

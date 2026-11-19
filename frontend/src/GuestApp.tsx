@@ -48,14 +48,14 @@ export default function GuestApp() {
                 <header className="glass dark:bg-stone-900/90 dark:border-stone-800/80 sticky top-0 z-30 px-5 sm:px-6 py-3.5 flex justify-between items-center transition-colors border-x-0 border-t-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex flex-col items-center justify-center shadow-sm shrink-0">
-                            <span className="text-[9px] font-bold uppercase tracking-wider leading-none opacity-80">Стіл</span>
+                            <span className="text-4xs font-bold uppercase tracking-wider leading-none opacity-80">Стіл</span>
                             <span className="text-sm font-black leading-tight">{tableNum}</span>
                         </div>
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                            <div className="text-2xs font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                                 {restaurantInfo?.name || 'Цифрове меню'}
                             </div>
-                            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-stone-900 dark:text-white leading-tight">
+                            <h1 className="text-lg sm:text-xl font-bold text-stone-900 dark:text-white leading-tight">
                                 Ваше замовлення
                             </h1>
                         </div>
@@ -270,10 +270,10 @@ function GuestFlow() {
                             </div>
                             <div className="text-left">
                                 <div className="text-sm sm:text-base font-bold leading-tight">Переглянути кошик</div>
-                                <div className="text-[11px] font-medium text-stone-300 dark:text-amber-100">Перевірте позиції перед відправкою</div>
+                                <div className="text-2xs font-medium text-stone-300 dark:text-amber-100">Перевірте позиції перед відправкою</div>
                             </div>
                         </div>
-                        <span className="text-base sm:text-lg font-extrabold tracking-tight bg-white/10 px-3 py-1.5 rounded-xl whitespace-nowrap">
+                        <span className="text-base sm:text-lg font-extrabold bg-white/10 px-3 py-1.5 rounded-xl whitespace-nowrap">
                             {totalAmount}&nbsp;₴ →
                         </span>
                     </button>
@@ -283,11 +283,11 @@ function GuestFlow() {
             {/* Модальне вікно / шторка кошика (Cart Bottom Sheet) */}
             {isCartOpen && count > 0 && createPortal(
                 <div
-                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade"
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn"
                     onClick={() => setIsCartOpen(false)}
                 >
                     <div
-                        className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[88dvh] border-t sm:border border-stone-200 dark:border-stone-800"
+                        className="animate-slideUpFade bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[88dvh] border-t sm:border border-stone-200 dark:border-stone-800"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between bg-stone-50/60 dark:bg-stone-950/40">
@@ -442,7 +442,7 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
 
     return (
         <div className="space-y-3">
-            <h2 className="text-base font-bold tracking-tight text-stone-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2">
                 <FireIcon className="w-5 h-5 text-amber-600" />
                 <span>Активні замовлення</span>
             </h2>
@@ -462,7 +462,7 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                 }`} />
                                 {o.status === 'NEW' ? 'Прийнято' : o.status === 'PREPARING' ? 'Готується' : 'Готово до подачі'}
                             </span>
-                            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-stone-900 dark:text-white whitespace-nowrap">{o.total}&nbsp;₴</span>
+                            <span className="text-lg sm:text-xl font-extrabold text-stone-900 dark:text-white whitespace-nowrap">{o.total}&nbsp;₴</span>
                         </div>
                         <div className="text-sm text-stone-600 dark:text-stone-400 mb-4 space-y-2">
                             {o.items.map((i: any, idx: number) => {
@@ -482,25 +482,25 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         {isItemReady && (
-                                            <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-800 inline-flex items-center gap-1">
+                                            <span className="text-2xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-800 inline-flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping" />
                                                 <span>Несуть вам</span>
                                             </span>
                                         )}
                                         {isItemServed && (
-                                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 inline-flex items-center gap-1">
+                                            <span className="text-2xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/50 inline-flex items-center gap-1">
                                                 <CheckIcon className="w-3 h-3 stroke-2" />
                                                 <span>Подано</span>
                                             </span>
                                         )}
                                         {isItemPreparing && (
-                                            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/40 inline-flex items-center gap-1">
+                                            <span className="text-2xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/40 inline-flex items-center gap-1">
                                                 <ClockIcon className="w-3 h-3" />
                                                 <span>Готується</span>
                                             </span>
                                         )}
                                         {(!i.status || i.status === "NEW") && (
-                                            <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400 bg-stone-200/60 dark:bg-stone-700 px-2 py-0.5 rounded-full">
+                                            <span className="text-2xs font-medium text-stone-500 dark:text-stone-400 bg-stone-200/60 dark:bg-stone-700 px-2 py-0.5 rounded-full">
                                                 В черзі
                                             </span>
                                         )}
@@ -517,7 +517,7 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                         <TagIcon className="w-4 h-4 shrink-0" />
                                         <span className="truncate">{o.appliedPromotionTitle}</span>
                                     </div>
-                                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
+                                    <div className="text-2xs text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
                                         Сума без знижки: {o.subtotal || (Number(o.total) + Number(o.discountAmount))}&nbsp;₴
                                     </div>
                                 </div>
@@ -541,7 +541,7 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                             <SparklesIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                             <span>Застосувати акцію або комбо</span>
                                         </span>
-                                        <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                                        <span className="text-2xs font-bold text-amber-700 dark:text-amber-400">
                                             Обрати →
                                         </span>
                                     </button>
@@ -560,7 +560,7 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                         <GiftIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                         <span>День народження чи свято?</span>
                                     </span>
-                                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                                    <span className="text-2xs font-bold text-amber-700 dark:text-amber-300">
                                         Повідомити →
                                     </span>
                                 </button>
@@ -590,8 +590,8 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
             </div>
 
             {promosModalOrderId && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-sm animate-slideUpFade" onClick={() => setPromosModalOrderId(null)}>
-                    <div className="bg-white dark:bg-stone-900 w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-stone-200 dark:border-stone-800 space-y-4" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-sm animate-fadeIn" onClick={() => setPromosModalOrderId(null)}>
+                    <div className="animate-slideUpFade bg-white dark:bg-stone-900 w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-stone-200 dark:border-stone-800 space-y-4" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center">
                             <h3 className="font-bold text-base text-stone-900 dark:text-white">Доступні акції</h3>
                             <button onClick={() => setPromosModalOrderId(null)} className="p-1 rounded-lg text-stone-400 hover:text-stone-600">
@@ -610,15 +610,15 @@ function ActiveOrders({ orders, onOrderUpdated }: { orders: any[]; onOrderUpdate
                                     <div className="font-bold text-xs text-stone-900 dark:text-white flex items-center justify-between">
                                         <span>{p.title}</span>
                                         {p.promoType === 'COMBO' ? (
-                                            <span className="text-[10px] text-amber-600 font-bold uppercase flex items-center gap-1">
+                                            <span className="text-3xs text-amber-600 font-bold uppercase flex items-center gap-1">
                                                 <FireIcon className="w-3.5 h-3.5" /> Комбо
                                             </span>
                                         ) : p.discountPercent > 0 ? (
-                                            <span className="text-[10px] text-emerald-600 font-bold">-{p.discountPercent}%</span>
+                                            <span className="text-3xs text-emerald-600 font-bold">-{p.discountPercent}%</span>
                                         ) : null}
                                     </div>
                                     {p.shortDescription && (
-                                        <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
+                                        <p className="text-2xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">
                                             {p.shortDescription}
                                         </p>
                                     )}
@@ -1025,8 +1025,8 @@ function Menu({
 
             {/* Модалка зі стравою */}
             {selectedItem && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setSelectedItem(null)}>
-                    <div className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[88dvh] sm:max-h-[88vh] border-t sm:border border-stone-200 dark:border-stone-800 overscroll-contain" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn touch-none overscroll-none" onClick={() => setSelectedItem(null)}>
+                    <div className="animate-slideUpFade bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[88dvh] sm:max-h-[88vh] border-t sm:border border-stone-200 dark:border-stone-800 overscroll-contain" onClick={e => e.stopPropagation()}>
                         {selectedItem.imageUrl && (
                             <div className="shrink-0 h-48 sm:h-52 w-full bg-stone-950 relative">
                                 <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-cover" />
@@ -1091,8 +1091,8 @@ function Menu({
 
             {/* Конфігуратор комбо */}
             {activeComboModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade touch-none overscroll-none" onClick={() => setActiveComboModal(null)}>
-                    <div className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90dvh] sm:max-h-[90vh] border-t sm:border border-stone-200 dark:border-stone-800 overscroll-contain" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn touch-none overscroll-none" onClick={() => setActiveComboModal(null)}>
+                    <div className="animate-slideUpFade bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90dvh] sm:max-h-[90vh] border-t sm:border border-stone-200 dark:border-stone-800 overscroll-contain" onClick={e => e.stopPropagation()}>
                         {activeComboModal.imageUrl && (
                             <div className="relative aspect-[16/9] w-full shrink-0 bg-stone-900">
                                 <img src={activeComboModal.imageUrl} alt={activeComboModal.title} className="w-full h-full object-cover" />
@@ -1153,7 +1153,7 @@ function Menu({
                                                         <span className="font-bold text-xs text-stone-800 dark:text-stone-200">
                                                             {slot.name || `Позиція #${sIdx + 1}`} ({slot.quantity || 1} шт.)
                                                         </span>
-                                                        <span className="text-[10px] text-stone-400 uppercase font-bold">Оберіть 1 варіант</span>
+                                                        <span className="text-3xs text-stone-400 uppercase font-bold">Оберіть 1 варіант</span>
                                                     </div>
 
                                                     <div className="grid grid-cols-1 gap-2">
@@ -1194,7 +1194,7 @@ function Menu({
                                                         <GiftIcon className="w-4 h-4" />
                                                         <span>Ваш подарунок (0 ₴)</span>
                                                     </span>
-                                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Безкоштовно</span>
+                                                    <span className="text-3xs text-emerald-600 dark:text-emerald-400 font-bold uppercase">Безкоштовно</span>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 gap-2">
@@ -1276,7 +1276,7 @@ function Menu({
                                         <div className="aspect-[16/9] -mx-5 -mt-5 mb-4 relative overflow-hidden bg-stone-900">
                                             <img src={combo.imageUrl} alt={combo.title} className="w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent"></div>
-                                            <span className="absolute top-3 left-3 bg-amber-600 text-white font-bold text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                            <span className="absolute top-3 left-3 bg-amber-600 text-white font-bold text-2xs px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
                                                 <FireIcon className="w-3.5 h-3.5" /> Комбо-набір
                                             </span>
                                         </div>
@@ -1285,12 +1285,12 @@ function Menu({
                                     <div>
                                         <div className="flex items-center gap-2 mb-1.5">
                                             {!combo.imageUrl && (
-                                                <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-[11px] px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
+                                                <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold text-2xs px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1">
                                                     <FireIcon className="w-3 h-3" /> Комбо
                                                 </span>
                                             )}
                                             {combo.badgeText && (
-                                                <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-[11px] px-2.5 py-0.5 rounded-full">
+                                                <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-2xs px-2.5 py-0.5 rounded-full">
                                                     {combo.badgeText}
                                                 </span>
                                             )}
@@ -1306,7 +1306,7 @@ function Menu({
                                     </div>
 
                                     <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 space-y-2">
-                                        <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300 block uppercase tracking-wider">
+                                        <span className="text-2xs font-bold text-amber-900 dark:text-amber-300 block uppercase tracking-wider">
                                             Склад комбо-пропозиції:
                                         </span>
                                         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1372,7 +1372,7 @@ function Menu({
                         <div key={i.id} className="flex flex-col bg-white dark:bg-stone-900 rounded-2xl overflow-hidden shadow-xs border border-stone-200/80 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700 transition-all group relative">
                             <button 
                                 onClick={(e) => handleLike(e, i.id)} 
-                                className="absolute top-2.5 right-2.5 z-10 h-7 px-2 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md rounded-full flex items-center gap-1 shadow-xs text-[11px] font-bold text-stone-600 dark:text-stone-300 transition-transform active:scale-90 cursor-pointer border border-stone-200/50 dark:border-stone-700/60"
+                                className="absolute top-2.5 right-2.5 z-10 h-7 px-2 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md rounded-full flex items-center gap-1 shadow-xs text-2xs font-bold text-stone-600 dark:text-stone-300 transition-transform active:scale-90 cursor-pointer border border-stone-200/50 dark:border-stone-700/60"
                             >
                                 {likedItems.has(i.id) ? <HeartIcon className="w-3.5 h-3.5 text-rose-500" /> : <HeartIconOutline className="w-3.5 h-3.5 text-stone-400" />}
                                 <span className={likedItems.has(i.id) ? "text-rose-600 dark:text-rose-400" : "text-stone-500 dark:text-stone-400"}>{i.favoritesCount || 0}</span>
@@ -1487,7 +1487,7 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
             </div>
 
             <div className="space-y-1.5">
-                <h3 className="text-lg font-bold tracking-tight text-stone-900 dark:text-white">{name}</h3>
+                <h3 className="text-lg font-bold text-stone-900 dark:text-white">{name}</h3>
                 <p className="text-xs leading-relaxed text-stone-500 dark:text-stone-400">{description}</p>
             </div>
 
@@ -1498,7 +1498,7 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
                             <WifiIcon className="w-4 h-4 text-amber-600 dark:text-amber-500" />
                             <span className="font-medium">Wi-Fi: <strong className="text-stone-900 dark:text-white">{wifiSsid}</strong></span>
                         </div>
-                        <span className="font-mono text-[11px] font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-md">{wifiPass}</span>
+                        <span className="font-mono text-2xs font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-md">{wifiPass}</span>
                     </div>
                 )}
                 {hours && (
@@ -1532,12 +1532,12 @@ function Footer({ info, theme, toggle }: { info: any; theme: 'light' | 'dark'; t
 
             {info?.lat && info?.lng && (
                 <div className="space-y-2 pt-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Розташування</span>
+                    <span className="text-2xs font-bold uppercase tracking-wider text-stone-400">Розташування</span>
                     <LeafletMap lat={lat} lng={lng} label={name} />
                 </div>
             )}
 
-            <div className="pt-3 text-center text-[11px] text-stone-400 dark:text-stone-600">
+            <div className="pt-3 text-center text-2xs text-stone-400 dark:text-stone-600">
                 © {new Date().getFullYear()} {name}
             </div>
         </footer>

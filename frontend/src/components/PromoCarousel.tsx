@@ -36,6 +36,16 @@ interface PromoCarouselProps {
     onCallWaiter?: () => void;
 }
 
+// apple-design.md §6 — проєкція інерції (функція з Designing Fluid Interfaces)
+const project = (velocity: number, decelerationRate = 0.998) =>
+    (velocity / 1000) * decelerationRate / (1 - decelerationRate);
+
+// apple-design.md §9 — м'який опір на межі замість жорсткого стопу
+const rubberband = (overshoot: number, dimension: number, constant = 0.55) =>
+    (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+
+const SNAP_TRANSITION = 'transform 450ms cubic-bezier(0.32, 0.72, 0, 1)';
+
 export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCallWaiter }: PromoCarouselProps) {
     const [promotions, setPromotions] = useState<PromotionItem[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -45,7 +55,15 @@ export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCa
     const [callingWaiter, setCallingWaiter] = useState(false);
     const [callSuccess, setCallSuccess] = useState(false);
 
-    const touchStartX = useRef<number | null>(null);
+    // Pointer Events замість touchstart/touchend: 1:1 трекінг, мишка + тач + перо
+    const trackRef = useRef<HTMLDivElement>(null);
+    const drag = useRef<{
+        originX: number; originY: number; lastX: number; lastT: number;
+        velocity: number; axis: 'x' | 'y' | null;
+    } | null>(null);
+    const suppressClick = useRef(false);
+    const [dragX, setDragX] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
         api.get('/promotions/active')
@@ -76,21 +94,78 @@ export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCa
         setCurrentIndex(prev => (prev - 1 + promotions.length) % promotions.length);
     };
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        touchStartX.current = e.touches[0].clientX;
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if ((e.target as HTMLElement).closest('button')) return; // стрілки мають власний tap
+        suppressClick.current = false;
         setIsPaused(true);
+
+        // §3 — якщо слайд ще «летить», підхоплюємо його з поточної (presentation) позиції
+        const width = e.currentTarget.clientWidth;
+        let live = 0;
+        if (trackRef.current) {
+            const m = new DOMMatrixReadOnly(getComputedStyle(trackRef.current).transform);
+            live = m.m41 + currentIndex * width;
+        }
+        const inFlight = Math.abs(live) > 1;
+
+        drag.current = {
+            originX: e.clientX - live, originY: e.clientY,
+            lastX: e.clientX, lastT: e.timeStamp, velocity: 0,
+            axis: inFlight ? 'x' : null,
+        };
+        if (inFlight) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDragX(live);
+            setIsDragging(true);
+        }
     };
 
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (touchStartX.current === null) return;
-        const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchStartX.current - touchEndX;
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const d = drag.current;
+        if (!d) return;
+        // кнопку миші відпустили поза слайдером до захоплення pointer — завершуємо «завислий» жест
+        if (e.pointerType === 'mouse' && e.buttons === 0) { handlePointerEnd(e); return; }
+        const dx = e.clientX - d.originX;
+        const dy = e.clientY - d.originY;
 
-        if (Math.abs(diff) > 40) {
-            if (diff > 0) nextSlide();
-            else prevSlide();
+        // §10 — гістерезис ~10px, потім фіксуємо напрям; вертикаль віддаємо скролу
+        if (d.axis === null) {
+            if (Math.hypot(dx, dy) < 10) return;
+            d.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+            if (d.axis === 'x') {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setIsDragging(true);
+            }
         }
-        touchStartX.current = null;
+        if (d.axis !== 'x') return;
+
+        const dt = e.timeStamp - d.lastT;
+        if (dt > 0) d.velocity = ((e.clientX - d.lastX) / dt) * 1000; // px/s
+        d.lastX = e.clientX;
+        d.lastT = e.timeStamp;
+
+        // §2 — контент їде разом із пальцем; один слайд → гумовий опір
+        setDragX(promotions.length > 1 ? dx : rubberband(dx, e.currentTarget.clientWidth));
+    };
+
+    const handlePointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+        const d = drag.current;
+        drag.current = null;
+        if (d?.axis === 'x') {
+            suppressClick.current = true;
+            const width = e.currentTarget.clientWidth;
+            // §6 — ціль обираємо за спроєктованою точкою, а не за точкою відпускання
+            // палець зупинився перед відпусканням (>100 мс без руху) → інерції немає
+            const velocity = e.timeStamp - d.lastT > 100 ? 0 : d.velocity;
+            const projected = dragX + project(velocity);
+            if (e.type !== 'pointercancel' && promotions.length > 1) {
+                if (projected < -width / 2) nextSlide();
+                else if (projected > width / 2) prevSlide();
+            }
+        }
+        setIsDragging(false);
+        setDragX(0);
         setIsPaused(false);
     };
 
@@ -131,35 +206,57 @@ export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCa
         <div className="relative select-none">
             {/* Головний слайдер */}
             <div
+                data-press="off"
                 className="relative aspect-[16/9] sm:aspect-[21/9] w-full rounded-2xl overflow-hidden shadow-md cursor-pointer group bg-stone-900 border border-stone-200/60 dark:border-stone-800"
-                onClick={() => setSelectedPromo(currentPromo)}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
+                style={{ touchAction: 'pan-y' }}
+                onClick={() => {
+                    if (suppressClick.current) { suppressClick.current = false; return; }
+                    setSelectedPromo(currentPromo);
+                }}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerEnd}
+                onPointerCancel={handlePointerEnd}
             >
-                <img
-                    src={currentPromo.imageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1000&q=80'}
-                    alt={currentPromo.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+                {/* Стрічка слайдів: під час жесту — без transition (1:1), після — snap */}
+                <div
+                    ref={trackRef}
+                    className="flex h-full will-change-transform"
+                    style={{
+                        transform: `translate3d(calc(${-currentIndex * 100}% + ${dragX}px), 0, 0)`,
+                        transition: isDragging ? 'none' : SNAP_TRANSITION,
+                    }}
+                >
+                    {promotions.map(promo => (
+                        <div key={promo.id} className="relative w-full h-full shrink-0">
+                            <img
+                                src={promo.imageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1000&q=80'}
+                                alt={promo.title}
+                                draggable={false}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
 
-                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/35 to-transparent"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/35 to-transparent"></div>
 
-                {currentPromo.badgeText && (
-                    <div className="absolute top-3.5 left-3.5 z-10 px-3 py-1 bg-amber-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-full shadow-sm flex items-center gap-1.5">
-                        <SparklesIcon className="w-3.5 h-3.5 stroke-2" />
-                        <span>{currentPromo.badgeText}</span>
-                    </div>
-                )}
+                            {promo.badgeText && (
+                                <div className="absolute top-3.5 left-3.5 z-10 px-3 py-1 bg-amber-600 text-white text-2xs font-bold uppercase tracking-wider rounded-full shadow-sm flex items-center gap-1.5">
+                                    <SparklesIcon className="w-3.5 h-3.5 stroke-2" />
+                                    <span>{promo.badgeText}</span>
+                                </div>
+                            )}
 
-                <div className="absolute bottom-3.5 inset-x-4 text-white z-10 pr-24">
-                    <h3 className="font-bold text-base sm:text-lg leading-snug drop-shadow-sm">
-                        {currentPromo.title}
-                    </h3>
-                    {currentPromo.shortDescription && (
-                        <p className="text-xs sm:text-sm text-stone-200/90 line-clamp-1 mt-0.5 font-medium">
-                            {currentPromo.shortDescription}
-                        </p>
-                    )}
+                            <div className="absolute bottom-3.5 inset-x-4 text-white z-10 pr-24">
+                                <h3 className="font-bold text-base sm:text-lg leading-snug drop-shadow-sm">
+                                    {promo.title}
+                                </h3>
+                                {promo.shortDescription && (
+                                    <p className="text-xs sm:text-sm text-stone-200/90 line-clamp-1 mt-0.5 font-medium">
+                                        {promo.shortDescription}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="absolute bottom-3.5 right-3.5 z-10 px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-white text-xs font-semibold transition-colors flex items-center gap-1">
@@ -209,11 +306,11 @@ export default function PromoCarousel({ onSelectMenuItem, onSelectCategory, onCa
 
             {selectedPromo && createPortal(
                 <div
-                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-slideUpFade"
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-950/70 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn"
                     onClick={() => setSelectedPromo(null)}
                 >
                     <div
-                        className="bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-stone-200/80 dark:border-stone-800"
+                        className="animate-slideUpFade bg-white dark:bg-stone-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] border border-stone-200/80 dark:border-stone-800"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="relative aspect-[16/9] w-full shrink-0 bg-stone-950">

@@ -80,21 +80,21 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
     };
 
     return (
-        <div className="h-screen flex bg-slate-50 dark:bg-slate-900 overflow-hidden text-slate-900 dark:text-slate-100 font-sans tracking-tight transition-colors duration-300">
+        <div className="h-screen flex bg-slate-50 dark:bg-slate-900 overflow-hidden text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300">
             <div className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800/80 flex flex-col z-20 transition-colors duration-300 shrink-0">
-                <div className="p-5 font-bold text-lg border-b border-slate-100 dark:border-slate-800/80 text-slate-900 dark:text-white tracking-tight flex items-center justify-between">
+                <div className="p-5 font-bold text-lg border-b border-slate-100 dark:border-slate-800/80 text-slate-900 dark:text-white flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-amber-600 flex items-center justify-center text-sm font-bold text-white shadow-sm">
                             <BuildingStorefrontIcon className="w-5 h-5 stroke-2" />
                         </div>
                         <div>
                             <div className="leading-none">Персонал</div>
-                            <div className="text-[11px] font-medium text-slate-400 mt-1">Панель керування</div>
+                            <div className="text-2xs font-medium text-slate-400 mt-1">Панель керування</div>
                         </div>
                     </div>
                 </div>
                 <div className="flex-1 p-3.5 space-y-1 overflow-y-auto">
-                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-2 px-3">
+                    <div className="text-2xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-2 px-3">
                         Робочі зони
                     </div>
                     {(role === 'ROLE_COOK' || role === 'ROLE_ADMIN' || role === 'ROLE_WAITER') && (
@@ -109,7 +109,7 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
                     
                     {role === 'ROLE_ADMIN' && (
                         <>
-                            <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-6 px-3">
+                            <div className="text-2xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-6 px-3">
                                 Управління
                             </div>
                             <LinkItem to="/staff/analytics" icon={<ChartBarIcon className="w-5 h-5"/>} label="Аналітика" />
@@ -123,7 +123,7 @@ export default function StaffApp({ role, setRole }: { role: string, setRole: any
                 <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col gap-3 bg-slate-50/60 dark:bg-slate-900/40">
                     <div className="flex justify-between items-center px-1">
                         <div>
-                            <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Роль у системі</div>
+                            <div className="text-2xs text-slate-400 dark:text-slate-500 font-medium">Роль у системі</div>
                             <div className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider mt-0.5">{role.replace('ROLE_','')}</div>
                         </div>
                         <ThemeToggle theme={theme} toggle={toggle} className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors shadow-sm" />

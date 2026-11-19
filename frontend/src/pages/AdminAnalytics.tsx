@@ -219,7 +219,7 @@ function StatCard({ title, value }: { title: string, value: string | number, tre
     return (
         <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs border-t-2 border-t-amber-500/80 transition-all">
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">{title}</div>
-            <div className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">{value}</div>
+            <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</div>
         </div>
     );
 }

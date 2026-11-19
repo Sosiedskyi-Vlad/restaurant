@@ -41,10 +41,10 @@ export default function Login({ setRole }: { setRole: any }) {
                             <BuildingStorefrontIcon className="w-6 h-6 stroke-2" />
                         </div>
                         <div>
-                            <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-500 block">
+                            <span className="text-2xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 block">
                                 Restaurant POS & KDS
                             </span>
-                            <h1 className="text-xl font-bold text-stone-900 dark:text-white tracking-tight">
+                            <h1 className="text-xl font-bold text-stone-900 dark:text-white">
                                 Вхід для персоналу
                             </h1>
                         </div>
@@ -103,7 +103,7 @@ export default function Login({ setRole }: { setRole: any }) {
                 </div>
 
                 <div className="px-8 py-4 bg-stone-50 dark:bg-stone-950/60 border-t border-stone-200/80 dark:border-stone-800">
-                    <div className="text-[11px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-2">
+                    <div className="text-2xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-2">
                         Швидкий вхід (демо-ролі)
                     </div>
                     <div className="grid grid-cols-3 gap-2">

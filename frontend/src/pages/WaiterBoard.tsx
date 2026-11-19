@@ -258,7 +258,7 @@ export default function WaiterBoard() {
                                     >
                                         <span>{z.name}</span>
                                         {callCount > 0 && (
-                                            <span className="bg-rose-600 text-white text-[11px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                            <span className="bg-rose-600 text-white text-2xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                                                 <BellIcon className="w-3 h-3 stroke-2" />
                                                 <span>{callCount}</span>
                                             </span>
@@ -328,7 +328,7 @@ export default function WaiterBoard() {
                         </svg>
 
                         {/* Zone Watermark */}
-                        <div className="absolute top-4 left-6 text-stone-800 text-2xl font-black tracking-widest uppercase pointer-events-none">
+                        <div className="absolute top-4 left-6 text-stone-800 text-2xl font-black tracking-[0.02em] uppercase pointer-events-none">
                             {ZONES.find(z => z.id === currentZone)?.name}
                         </div>
 
@@ -377,7 +377,7 @@ export default function WaiterBoard() {
                                             style={{ transform: `rotate(${-rot}deg)` }}
                                         >
                                             {IconComp && <IconComp className="w-3.5 h-3.5 shrink-0 opacity-85" />}
-                                            <span className="font-bold text-[11px] tracking-wide truncate opacity-90">
+                                            <span className="font-bold text-2xs tracking-wide truncate opacity-90">
                                                 {el.name}
                                             </span>
                                         </div>
@@ -440,10 +440,10 @@ export default function WaiterBoard() {
                                 >
                                     {/* Top row: Table number & seat count */}
                                     <div className="w-full flex items-center justify-between leading-none select-none">
-                                        <span className="text-sm sm:text-base font-black tracking-tight">
+                                        <span className="text-sm sm:text-base font-black">
                                             №{t.number}
                                         </span>
-                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/25 text-white/90 inline-flex items-center gap-0.5">
+                                        <span className="text-3xs font-bold px-1.5 py-0.5 rounded bg-black/25 text-white/90 inline-flex items-center gap-0.5">
                                             <UsersIcon className="w-2.5 h-2.5" />
                                             <span>{seats}</span>
                                         </span>
@@ -453,16 +453,16 @@ export default function WaiterBoard() {
                                     <div className="w-full text-left leading-tight select-none mt-auto">
                                         {status === 'red' ? (
                                             <div>
-                                                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-wide">
+                                                <div className="text-3xs sm:text-2xs font-black uppercase tracking-wide">
                                                     Кличе стіл
                                                 </div>
-                                                <div className="text-[10px] font-semibold opacity-90">
+                                                <div className="text-3xs font-semibold opacity-90">
                                                     {callDurationStr || 'Щойно'}
                                                 </div>
                                             </div>
                                         ) : status === 'blue' ? (
                                             <div>
-                                                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-wide">
+                                                <div className="text-3xs sm:text-2xs font-black uppercase tracking-wide">
                                                     Рахунок
                                                 </div>
                                                 {totalBill > 0 && (
@@ -473,11 +473,11 @@ export default function WaiterBoard() {
                                             </div>
                                         ) : status === 'orange' ? (
                                             <div>
-                                                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-wide">
+                                                <div className="text-3xs sm:text-2xs font-black uppercase tracking-wide">
                                                     Готово ({readyItemsCount || 1})
                                                 </div>
                                                 {totalBill > 0 && (
-                                                    <div className="text-[10px] font-bold opacity-85">
+                                                    <div className="text-3xs font-bold opacity-85">
                                                         {totalBill} ₴
                                                     </div>
                                                 )}
@@ -487,12 +487,12 @@ export default function WaiterBoard() {
                                                 <div className="text-xs font-extrabold text-amber-300">
                                                     {totalBill} ₴
                                                 </div>
-                                                <div className="text-[10px] font-medium text-amber-200/80">
+                                                <div className="text-3xs font-medium text-amber-200/80">
                                                     {orderMinutes !== null ? `${orderMinutes} хв` : 'В роботі'}
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                                            <div className="flex items-center gap-1 text-3xs font-semibold text-emerald-400">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                                                 <span>Вільний</span>
                                             </div>
@@ -544,7 +544,7 @@ export default function WaiterBoard() {
                             >
                                 <div>
                                     <div className="flex items-center gap-3">
-                                        <div className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">
+                                        <div className="font-bold text-xl text-slate-900 dark:text-white">
                                             Стіл №{c.tableNumber}
                                         </div>
                                         <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-stone-100 dark:bg-slate-700 text-stone-700 dark:text-slate-300">
@@ -584,11 +584,11 @@ export default function WaiterBoard() {
             {/* Modal for Table Details */}
             {selectedTable && createPortal(
                 <div 
-                    className="fixed inset-0 bg-slate-950/65 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-slideUpFade"
+                    className="fixed inset-0 bg-slate-950/65 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn"
                     onClick={() => setSelectedTable(null)}
                 >
                     <div 
-                        className="bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800"
+                        className="animate-slideUpFade bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-800"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
@@ -734,17 +734,17 @@ export default function WaiterBoard() {
                                                                     </button>
                                                                 )}
                                                                 {isItemServed && (
-                                                                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+                                                                    <span className="text-2xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-md">
                                                                         Подано
                                                                     </span>
                                                                 )}
                                                                 {isItemPreparing && (
-                                                                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-100/80 dark:bg-amber-950/60 dark:text-amber-400 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                                                                    <span className="text-2xs font-semibold text-amber-700 bg-amber-100/80 dark:bg-amber-950/60 dark:text-amber-400 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
                                                                         <ClockIcon className="w-3 h-3" /> Готується
                                                                     </span>
                                                                 )}
                                                                 {(!i.status || i.status === 'NEW') && (
-                                                                    <span className="text-[11px] font-semibold text-slate-600 bg-slate-200/70 dark:bg-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md">
+                                                                    <span className="text-2xs font-semibold text-slate-600 bg-slate-200/70 dark:bg-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md">
                                                                         В черзі
                                                                     </span>
                                                                 )}
@@ -778,7 +778,7 @@ export default function WaiterBoard() {
                                                 ) : (
                                                     !o.paid && availablePromos.length > 0 && (
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-[11px] text-slate-400 font-bold shrink-0">Акція / знижка:</span>
+                                                            <span className="text-2xs text-slate-400 font-bold shrink-0">Акція / знижка:</span>
                                                             <div className="flex flex-wrap gap-1.5 flex-1">
                                                                 {availablePromos.map((promo: any) => (
                                                                     <button
